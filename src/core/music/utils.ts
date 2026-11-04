@@ -310,6 +310,25 @@ export const raceOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSour
   })
 }
 
+/**
+ * 强制从「别的源」取链接 (播放器已经报错, 说明当前源给的链接是死的).
+ * 不做"先试当前源"这一步, 直接换源竞速.
+ */
+export const getMusicUrlFromOtherSources = async({ musicInfo, quality }: {
+  musicInfo: LX.Music.MusicInfoOnline
+  quality?: LX.Quality
+}): Promise<{ url: string, quality: LX.Quality }> => {
+  const otherSource = await getOtherSource(musicInfo, true)
+  const list = otherSource.filter(item => item.source != musicInfo.source)
+  if (!list.length) throw new Error(global.i18n.t('toggle_source_failed'))
+  const result = await raceOtherSourceMusicUrl({
+    musicInfos: list,
+    quality,
+    onToggleSource: () => {},
+  })
+  return { url: result.url, quality: result.quality }
+}
+
 export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSource, isRefresh, retryedSource = [] }: {
   musicInfos: LX.Music.MusicInfoOnline[]
   quality?: LX.Quality

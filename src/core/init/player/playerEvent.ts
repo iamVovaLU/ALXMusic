@@ -1,10 +1,12 @@
-import { playNext, setMusicUrl } from '@/core/player/player'
+import { playNext, setMusicUrl, setMusicUrlFromOtherSource } from '@/core/player/player'
 import { setStatusText } from '@/core/player/playStatus'
 import { getPosition, isEmpty, setStop } from '@/plugins/player'
 import { isActive } from '@/utils/tools'
 import BackgroundTimer from 'react-native-background-timer'
 import playerState from '@/store/player/state'
 import { setNowPlayTime } from '@/core/player/progress'
+import { initSourceHealth, recordFail, pushEvent } from '@/core/music/sourceHealth'
+import settingState from '@/store/setting/state'
 
 
 export default () => {
@@ -97,6 +99,18 @@ export default () => {
       }).finally(() => {
         // console.log(this.retryNum)
         if (playerState.playMusicInfo.musicInfo !== musicInfo) return
+        // ALX: 播放器报错说明"拿到的链接其实播不了", 先把这个源记一次失败,
+        // 然后直接换源(并行竞速), 而不是反复刷新同一个死链.
+        const source = 'progress' in musicInfo ? musicInfo.metadata.musicInfo.source : musicInfo.source
+        if (retryNum === 0 && source != 'local') {
+          retryNum++
+          void initSourceHealth().then(() => {
+            recordFail(settingState.setting['common.apiSource'] || '', source, 0, 'audio load error (player)')
+            pushEvent(`播放报错 → 标记 ${source} 失败并换源`)
+          })
+          setMusicUrlFromOtherSource(musicInfo)
+          return
+        }
         retryNum++
         setMusicUrl(playerState.playMusicInfo.musicInfo, true)
         setStatusText(global.i18n.t('player__refresh_url'))

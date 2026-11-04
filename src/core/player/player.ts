@@ -20,6 +20,7 @@ import {
   removeTempPlayList,
 } from '@/core/player/tempPlayList'
 import { getMusicUrl, getPicPath, getLyricInfo } from '@/core/music'
+import { getMusicUrlFromOtherSources } from '@/core/music/utils'
 import { requestMsg } from '@/utils/message'
 import { getRandom } from '@/utils/common'
 import { filterList } from './utils'
@@ -139,6 +140,30 @@ export const setMusicUrl = (musicInfo: LX.Music.MusicInfo | LX.Download.ListItem
   global.lx.gettingUrlId = createGettingUrlId(musicInfo)
   void getMusicPlayUrl(musicInfo, isRefresh).then((url) => {
     if (!url) return
+    setResource(musicInfo, url, playerState.progress.nowPlayTime)
+  }).catch((err: any) => {
+    console.log(err)
+    setStatusText(err.message as string)
+    global.app_event.error()
+    addDelayNextTimeout()
+  }).finally(() => {
+    if (musicInfo === playerState.playMusicInfo.musicInfo) {
+      global.lx.gettingUrlId = ''
+      clearLoadTimeout()
+    }
+  })
+}
+
+// 播放器报错(链接其实不可播)时: 直接换到别的源, 而不是反复刷新同一个死链
+export const setMusicUrlFromOtherSource = (musicInfo: LX.Music.MusicInfo | LX.Download.ListItem) => {
+  if (!diffCurrentMusicInfo(musicInfo)) return
+  const info = 'progress' in musicInfo ? musicInfo.metadata.musicInfo : musicInfo
+  if (info.source == 'local') return
+  if (cancelDelayRetry) cancelDelayRetry()
+  global.lx.gettingUrlId = createGettingUrlId(musicInfo)
+  setStatusText('音频加载失败，正在换源…')
+  void getMusicUrlFromOtherSources({ musicInfo: info as LX.Music.MusicInfoOnline }).then(({ url }) => {
+    if (global.lx.isPlayedStop || diffCurrentMusicInfo(musicInfo)) return
     setResource(musicInfo, url, playerState.progress.nowPlayTime)
   }).catch((err: any) => {
     console.log(err)
