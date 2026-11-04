@@ -1,6 +1,9 @@
 import { getData, saveData, getAllKeys, removeDataMultiple, saveDataMultiple, removeData, getDataMultiple } from '@/plugins/storage'
 import { DEFAULT_SETTING, LIST_IDS, storageDataPrefix, type NAV_ID_Type } from '@/config/constant'
 import { throttle } from './common'
+import settingState from '@/store/setting/state'
+import { readLyricFile, writeLyricFile, clearLyricFiles } from '@/core/cache/metaCache'
+import { log } from '@/utils/log'
 // import { gzip, ungzip } from '@/utils/nativeModules/gzip'
 // import { readFile, writeFile, temporaryDirectoryPath, unlink } from '@/utils/fs'
 // import { isNotificationsEnabled, openNotificationPermissionActivity, shareText } from '@/utils/nativeModules/utils'
@@ -355,11 +358,30 @@ export const clearMusicUrl = async(keys?: string[]) => {
   await removeDataMultiple(keys)
 }
 
-export const getLyric = async(musicInfo: LX.Music.MusicInfo) => getData<LX.Music.LyricInfo>(`${storageDataPrefix.lyric}${musicInfo.id}`).then(lrcInfo => lrcInfo ?? { lyric: '' })
-export const saveLyric = async(musicInfo: LX.Music.MusicInfo, lyricInfo: LX.Music.LyricInfo) => saveData(`${storageDataPrefix.lyric}${musicInfo.id}`, lyricInfo)
+// ALX: 外部存储模式(缓存位置=TF卡)时, 歌词改存到文件, 跟随缓存位置落盘
+const useLyricFileCache = () => settingState.setting['player.cacheLocation'] == 'external'
+
+export const getLyric = async(musicInfo: LX.Music.MusicInfo) => {
+  if (useLyricFileCache()) {
+    const fileInfo = await readLyricFile<LX.Music.LyricInfo>(musicInfo.id)
+    if (fileInfo && fileInfo.lyric != null) return fileInfo
+  }
+  return getData<LX.Music.LyricInfo>(`${storageDataPrefix.lyric}${musicInfo.id}`).then(lrcInfo => lrcInfo ?? { lyric: '' })
+}
+export const saveLyric = async(musicInfo: LX.Music.MusicInfo, lyricInfo: LX.Music.LyricInfo) => {
+  if (useLyricFileCache()) {
+    return writeLyricFile(musicInfo.id, lyricInfo).catch(err => {
+      log.warn('[ALX] save lyric to file failed', err)
+      return saveData(`${storageDataPrefix.lyric}${musicInfo.id}`, lyricInfo)
+    })
+  }
+  return saveData(`${storageDataPrefix.lyric}${musicInfo.id}`, lyricInfo)
+}
 export const clearLyric = async(keys?: string[]) => {
   if (!keys) keys = (await getAllKeys()).filter(key => key.startsWith(storageDataPrefix.lyric))
   await removeDataMultiple(keys)
+  // 文件缓存也一起清
+  if (!keys.length) await clearLyricFiles().catch(() => {})
 }
 export const saveEditedLyric = async(musicInfo: LX.Music.MusicInfo, lyricInfo: LX.Music.LyricInfo) => saveData(`${storageDataPrefix.lyric}${musicInfo.id}_edited`, lyricInfo)
 export const clearEditedLyric = async() => {

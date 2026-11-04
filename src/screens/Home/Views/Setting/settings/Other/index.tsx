@@ -1,8 +1,7 @@
 import { memo } from 'react'
 
 import Section from '../../components/Section'
-import ResourceCache from './ResourceCache'
-import MetaCache from './MetaCache'
+import CacheSettings from './CacheSettings'
 import DislikeList from './DislikeList'
 import Log from './Log'
 import DownloadSettings from './DownloadSettings'
@@ -14,8 +13,7 @@ export default memo(() => {
 
   return (
     <Section title={t('setting_other')}>
-      <ResourceCache />
-      <MetaCache />
+      <CacheSettings />
       <DownloadSettings />
       <DislikeList />
       <Log />
