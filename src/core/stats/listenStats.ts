@@ -29,6 +29,8 @@ let initPromise: Promise<void> | null = null
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let tickTimer: ReturnType<typeof setInterval> | null = null
 let lastTickAt = 0
+// 计时开始时记下的那首歌 (切歌时 playerState 已经变成新歌了, 不能现取)
+let active: { id: string, name: string, singer: string, album: string } | null = null
 
 const scheduleSave = () => {
   if (saveTimer) clearTimeout(saveTimer)
@@ -40,30 +42,38 @@ const scheduleSave = () => {
   }, 1000)
 }
 
-// 把「从现在到上次记账」的时间加到当前歌曲上
+const snapshot = () => {
+  const info = playerState.musicInfo
+  if (!info.id) return null
+  return {
+    id: String(info.id),
+    name: info.name || '',
+    singer: info.singer || '',
+    album: info.album || '',
+  }
+}
+
+// 把「从现在到上次记账」的时间加给**开始计时时那首歌** (active), 而不是当前正在播的
 const flush = () => {
   if (!lastTickAt) return
   const now = Date.now()
   let delta = Math.round((now - lastTickAt) / 1000)
   lastTickAt = now
-  if (delta <= 0) return
+  if (delta <= 0 || !active) return
   if (delta > MAX_TICK_SECONDS) delta = MAX_TICK_SECONDS
-  const info = playerState.musicInfo
-  const id = info.id
-  if (!id) return
-  const existed = stats.get(id)
+  const existed = stats.get(active.id)
   if (existed) {
     existed.seconds += delta
     existed.lastAt = now
-    if (info.name) existed.name = info.name
-    if (info.singer) existed.singer = info.singer
-    if (info.album) existed.album = info.album
+    if (active.name) existed.name = active.name
+    if (active.singer) existed.singer = active.singer
+    if (active.album) existed.album = active.album
   } else {
-    stats.set(id, {
-      id,
-      name: info.name || '(未知歌曲)',
-      singer: info.singer || '',
-      album: info.album || '',
+    stats.set(active.id, {
+      id: active.id,
+      name: active.name || '(未知歌曲)',
+      singer: active.singer,
+      album: active.album,
       seconds: delta,
       lastAt: now,
     })
@@ -98,15 +108,20 @@ export const initListenStats = async() => {
 
     // 播放/暂停/切歌 时结算
     global.app_event.on('play', () => {
+      // 恢复播放时 active 还是同一首歌; 首次播放则取当前歌曲
+      active = active ?? snapshot()
       lastTickAt = Date.now()
       startTick()
     })
     global.app_event.on('pause', () => {
       flush()
+      lastTickAt = 0
       stopTick()
     })
     global.app_event.on('musicToggled', () => {
+      // 先把时间结算给上一首歌 (active), 再切到新歌
       flush()
+      active = snapshot()
       lastTickAt = playerState.isPlay ? Date.now() : 0
     })
   })()
