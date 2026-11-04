@@ -31,6 +31,7 @@ export default () => {
   let lastPosAt = 0
   let seekAt = 0
   let lastMax = 0
+  let tickCount = 0
   const getCurrentTime = () => {
     let id = playerState.musicInfo.id
     void getPosition().then(position => {
@@ -44,17 +45,22 @@ export default () => {
         setNowPlayTime(position)
         return
       }
-      if (playerState.isPlay && lastPosAt && now - seekAt > 2000) {
+      if (playerState.isPlay && lastPosAt && now - seekAt > 1500) {
         const elapsed = (now - lastPosAt) / 1000
-        if (elapsed > 0.2) {
+        if (elapsed > 0.15) {
           const rate = settingState.setting['player.playbackRate'] || 1
-          // 正常情况下最多走 elapsed * rate 秒, 留 50% + 0.8s 余量
-          const allowed = elapsed * Math.max(rate, 0.1) * 1.5 + 0.8
           const delta = position - lastPos
+          // 单次允许的前进量: 真实时间 × 倍速, 留一点抖动余量
+          const allowed = elapsed * Math.max(rate, 0.1) * 1.2 + 0.4
+          // 前 12 个采样点打个快照, 方便判断底层到底报了多少
+          if (tickCount < 12) {
+            tickCount++
+            log.info('[ALX] tick', { pos: Number(position.toFixed(2)), delta: Number(delta.toFixed(2)), elapsed: Number(elapsed.toFixed(2)), rate, max: playerState.progress.maxPlayTime })
+          }
           // 只纠正「跑太快」, 往回跳可能是循环/切段, 放行
           if (delta > allowed) {
             const corrected = Math.max(0, lastPos + elapsed * rate)
-            log.warn('[ALX] progress jump', { delta, elapsed, position, corrected, max: playerState.progress.maxPlayTime })
+            log.warn('[ALX] progress jump', { delta: Number(delta.toFixed(2)), elapsed: Number(elapsed.toFixed(2)), position, corrected: Number(corrected.toFixed(2)), rate, max: playerState.progress.maxPlayTime })
             position = corrected
           }
         }
@@ -97,7 +103,7 @@ export default () => {
     clearUpdateTimeout()
     updateTimeout = BackgroundTimer.setInterval(() => {
       getCurrentTime()
-    }, 1000 / settingState.setting['player.playbackRate'])
+    }, 500)
     getCurrentTime()
   }
 
@@ -117,6 +123,8 @@ export default () => {
 
 
   const handlePlay = () => {
+    tickCount = 0
+    lastPosAt = 0
     void getMaxTime()
     // prevProgressStatus = 'normal'
     // handleSetTaskBarState(playProgress.progress, prevProgressStatus)
