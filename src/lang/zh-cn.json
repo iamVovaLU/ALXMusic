@@ -548,5 +548,6 @@
   "alx_setting_cache_internal": "内部存储",
   "alx_setting_cache_external": "外置存储（TF 卡）",
   "alx_setting_cache_external_missing": "没有检测到可用的外置存储",
-  "alx_setting_cache_need_restart": "设置已保存，重启应用后生效"
+  "alx_setting_cache_need_restart": "设置已保存，重启应用后生效",
+  "nav_more": "更多"
 }

@@ -6,7 +6,6 @@ import MetaCache from './MetaCache'
 import DislikeList from './DislikeList'
 import Log from './Log'
 import DownloadSettings from './DownloadSettings'
-import SourceHealth from './SourceHealth'
 // import MaxCache from './MaxCache'
 import { useI18n } from '@/lang'
 
@@ -18,7 +17,6 @@ export default memo(() => {
       <ResourceCache />
       <MetaCache />
       <DownloadSettings />
-      <SourceHealth />
       <DislikeList />
       <Log />
       {/* <MaxCache /> */}

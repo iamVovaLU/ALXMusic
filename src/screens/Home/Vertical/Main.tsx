@@ -5,6 +5,7 @@ import SongList from '../Views/SongList'
 import Mylist from '../Views/Mylist'
 import Leaderboard from '../Views/Leaderboard'
 import Download from '../Views/Download'
+import More from '../Views/More'
 import Setting from '../Views/Setting'
 import commonState, { type InitState as CommonState } from '@/store/common/state'
 import { createStyle } from '@/utils/tools'
@@ -159,6 +160,41 @@ const MylistPage = () => {
 
   return visible ? component : null
 }
+const MorePage = () => {
+  const [visible, setVisible] = useState(commonState.navActiveId == 'nav_more')
+  const component = useMemo(() => <More />, [])
+  useEffect(() => {
+    let currentId: CommonState['navActiveId'] = commonState.navActiveId
+    const handleNavIdUpdate = (id: CommonState['navActiveId']) => {
+      currentId = id
+      if (id == 'nav_more') {
+        requestAnimationFrame(() => {
+          setVisible(true)
+        })
+      }
+    }
+    const handleHide = () => {
+      if (currentId != 'nav_setting') return
+      setVisible(false)
+    }
+    const handleConfigUpdated = (keys: Array<keyof LX.AppSetting>) => {
+      if (keys.some(k => hideKeys.includes(k))) handleHide()
+    }
+    global.state_event.on('navActiveIdUpdated', handleNavIdUpdate)
+    global.state_event.on('themeUpdated', handleHide)
+    global.state_event.on('languageChanged', handleHide)
+    global.state_event.on('configUpdated', handleConfigUpdated)
+
+    return () => {
+      global.state_event.off('navActiveIdUpdated', handleNavIdUpdate)
+      global.state_event.off('themeUpdated', handleHide)
+      global.state_event.off('languageChanged', handleHide)
+      global.state_event.off('configUpdated', handleConfigUpdated)
+    }
+  }, [])
+  return visible ? component : null
+}
+
 const SettingPage = () => {
   const [visible, setVisible] = useState(commonState.navActiveId == 'nav_setting')
   const component = useMemo(() => <Setting />, [])
@@ -220,7 +256,8 @@ const viewMap = {
   nav_top: 2,
   nav_love: 3,
   nav_download: 4,
-  nav_setting: 5,
+  nav_more: 5,
+  nav_setting: 6,
 }
 const indexMap = [
   'nav_search',
@@ -228,6 +265,7 @@ const indexMap = [
   'nav_top',
   'nav_love',
   'nav_download',
+  'nav_more',
   'nav_setting',
 ] as const
 
@@ -326,6 +364,9 @@ const Main = () => {
       </View>
       <View collapsable={false} key="nav_download" style={styles.pageStyle}>
         <DownloadPage />
+      </View>
+      <View collapsable={false} key="nav_more" style={styles.pageStyle}>
+        <MorePage />
       </View>
       <View collapsable={false} key="nav_setting" style={styles.pageStyle}>
         <SettingPage />

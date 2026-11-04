@@ -548,5 +548,6 @@
   "alx_setting_cache_internal": "Internal storage",
   "alx_setting_cache_external": "External (SD card)",
   "alx_setting_cache_external_missing": "No removable storage detected",
-  "alx_setting_cache_need_restart": "Saved. Restart the app to apply."
+  "alx_setting_cache_need_restart": "Saved. Restart the app to apply.",
+  "nav_more": "More"
 }
