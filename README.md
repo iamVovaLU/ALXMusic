@@ -1,121 +1,102 @@
-> **本仓库是 [LX Music 移动版](https://github.com/lyswhut/lx-music-mobile) 的个人定制分支（ALXMusic）**。
-> 包名 `cn.alx.music`，与原版可共存。改动清单见 [ALX-README.md](./ALX-README.md)。
-> 上游代码版权归 lyswhut 及贡献者所有，遵循 Apache-2.0 协议。
+<div align="center">
 
-<p align="center"><a href="https://github.com/lyswhut/lx-music-mobile"><img width="200" src="https://github.com/lyswhut/lx-music-mobile/blob/master/doc/images/icon.png" alt="lx-music logo"></a></p>
+# ALXMusic
 
-<h1 align="center">LX Music 移动版</h1>
+**基于 [LX Music 移动版](https://github.com/lyswhut/lx-music-mobile) 的优化分支**
 
-<p align="center">
-  <a href="https://github.com/lyswhut/lx-music-mobile/releases"><img src="https://img.shields.io/github/release/lyswhut/lx-music-mobile" alt="Release version"></a>
-  <a href="https://github.com/lyswhut/lx-music-mobile/actions/workflows/release.yml"><img src="https://github.com/lyswhut/lx-music-mobile/workflows/Build/badge.svg" alt="Build status"></a>
-  <a href="https://github.com/lyswhut/lx-music-mobile/actions/workflows/beta-pack.yml"><img src="https://github.com/lyswhut/lx-music-mobile/workflows/Build%20Beta/badge.svg" alt="Build status"></a>
-  <a href="https://github.com/facebook/react-native"><img src="https://img.shields.io/github/package-json/dependency-version/lyswhut/lx-music-mobile/react-native/master" alt="React native version"></a>
-  <!-- <a href="https://github.com/lyswhut/lx-music-mobile/releases"><img src="https://img.shields.io/github/downloads/lyswhut/lx-music-mobile/latest/total" alt="Downloads"></a> -->
-  <a href="https://github.com/lyswhut/lx-music-mobile/tree/dev"><img src="https://img.shields.io/github/package-json/v/lyswhut/lx-music-mobile/dev" alt="Dev branch version"></a>
-  <!-- <a href="https://github.com/lyswhut/lx-music-mobile/blob/master/LICENSE"><img src="https://img.shields.io/github/license/lyswhut/lx-music-mobile" alt="License"></a> -->
-</p>
+包名 `cn.alx.music` · 可与原版共存安装 · Apache-2.0
 
-<p align="center">一个基于 React Native 开发的音乐软件</p>
-
-## 说明
-
-所用技术栈：
-
-- React Native
-- Redux
-
-已支持的平台：
-
-- Android 5 及以上
-
-***注：目前没有计划支持 iOS 和 HarmonyOS NEXT**。*<br>
-*桌面版项目地址：<https://github.com/lyswhut/lx-music-desktop>*<br>
-*LX Music 项目发展调整与新项目计划：https://github.com/lyswhut/lx-music-desktop/issues/1912*
-
-软件变化请查看[更新日志](https://github.com/lyswhut/lx-music-mobile/blob/master/CHANGELOG.md)。
-
-软件下载请查看 [GitHub Releases](https://github.com/lyswhut/lx-music-mobile/releases)。
-
-使用常见问题请参阅[移动版常见问题](https://lyswhut.github.io/lx-music-doc/mobile/faq)。
-
-目前本项目的原始发布地址只有 [**GitHub**](https://github.com/lyswhut/lx-music-mobile/releases)，其他渠道均为第三方转载发布，与本项目无关！
-
-为了提高使用门槛，本软件内的默认设置、UI 操作不以新手友好为目标，所以使用前建议先根据你的喜好浏览调整一遍软件设置，阅读一遍[音乐播放列表机制](https://lyswhut.github.io/lx-music-doc/mobile/faq/playlist)。
-
-### 数据同步服务
-
-从 v1.0.0 起，我们发布了一个独立的[数据同步服务](https://github.com/lyswhut/lx-music-sync-server#readme)。如果你有服务器，可以将其部署到服务器上作为私人多端同步服务使用，详情看该项目说明。
-
-## 贡献代码
-
-本项目欢迎 PR，但为了 PR 能顺利合并，需要注意以下几点：
-
-- 对于添加新功能的 PR，建议在提交 PR 前先创建 Issue 进行说明，以确认该功能是否确实需要；
-- 对于修复 bug 的 PR，请提供修复前后的说明及重现方式；
-- 对于其他类型的 PR，则适当附上说明。
-
-贡献代码步骤：
-
-1. 参照[源码使用方法](https://lyswhut.github.io/lx-music-doc/mobile/use-source-code)设置开发环境；
-2. 克隆本仓库代码并切换至 `dev` 分支进行开发；
-3. 提交 PR 至 `dev` 分支。
-
-<!--
-## 用户界面
-
-<p><img width="100%" src="https://github.com/lyswhut/lx-music-mobile/blob/master/doc/images/app.png" alt="lx-music mobile UI"></p> -->
-
-## 项目协议
-
-本项目基于 [Apache License 2.0](https://github.com/lyswhut/lx-music-mobile/blob/master/LICENSE) 许可证发行，以下协议是对于 Apache License 2.0 的补充，如有冲突，以以下协议为准。
+</div>
 
 ---
 
-*词语约定：本协议中的“本项目”指 LX Music（洛雪音乐）移动版项目；“使用者”指签署本协议的使用者；“官方音乐平台”指对本项目内置的包括酷我、酷狗、咪咕等音乐源的官方平台统称；“版权数据”指包括但不限于图像、音频、名字等在内的他人拥有所属版权的数据。*
+## 这个分支是干什么的
 
-### 一、数据来源
+> **定位：修改和优化原版 LX Music 中不合理、令人不适的地方，并在不破坏原有体验的前提下，增加或恢复新旧功能。**
 
-1.1 本项目的各官方平台在线数据来源原理是从其公开服务器中拉取数据（与未登录状态在官方平台 APP 获取的数据相同），经过对数据简单地筛选与合并后进行展示，因此本项目不对数据的合法性、准确性负责。
+不是换皮，也不是"个人魔改收藏夹"。原版能用的地方一律不动；只动那些真正碍事的地方——比如下载功能被整块注释掉、
+换源要一个源一个源排队等、链接拿到了却根本播不了、缓存目录写死在内置存储。
 
-1.2 本项目本身没有获取某个音频数据的能力，本项目使用的在线音频数据来源来自软件设置内“自定义源”设置所选择的“源”返回的在线链接。例如播放某首歌，本项目所做的只是将希望播放的歌曲名、艺术家等信息传递给“源”，若“源”返回了一个链接，则本项目将认为这就是该歌曲的音频数据而进行使用，至于这是不是正确的音频数据本项目无法校验其准确性，所以使用本项目的过程中可能会出现希望播放的音频与实际播放的音频不对应或者无法播放的问题。
+## 原版让人难受的地方，以及这里的做法
 
-1.3 本项目的非官方平台数据（例如“我的列表”内列表）来自使用者本地系统或者使用者连接的同步服务，本项目不对这些数据的合法性、准确性负责。
+| 问题 | 原版 | 本分支 |
+|---|---|---|
+| 下载功能 | 源码里被整块注释，界面上只剩残骸 | 完整重写：下载页、进度、暂停继续、优先播本地 |
+| 换源方式 | 一个源失败才试下一个，慢源能把人卡死 | **并行竞速**：最多 4 路同时要链接，先到先得 |
+| 链接有效性 | 拿到 URL 就当成功，播放器报错才发现是死链 | 每个链接都发 Range 请求验证（200/206 + 非网页） |
+| 播放器报错 | 反复刷新同一个死链，然后"5 秒后播放下一首" | 按音源失败处理，直接换源竞速 |
+| 会员歌 1 分钟试听 | 没有任何手动切换入口 | 播放页 ⚠️ 按钮：清缓存 + 强制换源 |
+| 缓存位置 | 写死在内部存储 | 播放缓存 + **歌词缓存**都可放 TF 卡，一眼看到真实路径 |
+| 换源过程 | 黑盒，看不到发生了什么 | 「更多 → 音源健康」：成功率、耗时、冷却、竞速日志 |
+| 更新通道 | 指向上游仓库 | 指向本项目，Release 说明写清楚改了什么 |
 
-### 二、版权数据
+## 功能清单
 
-2.1 使用本项目的过程中可能会产生版权数据。对于这些版权数据，本项目不拥有它们的所有权。为了避免侵权，使用者务必在 **24 小时内** 清除使用本项目的过程中所产生的版权数据。
+### 播放与换源
+- **并行竞速换源**：当前源取链失败时，一次性向最多 4 个「健康」源要链接，第一个通过探活的胜出（v1.9.5）
+- **可播放性验证**：`Range: bytes=0-2047`，状态码 200/206 且 content-type 不是网页/JSON 才算成功（v1.9.5）
+- **音源健康度**：按成功率 75% + 平均延迟 25% 排序；连续失败 3 次进入冷却（1→2→4… 分钟，上限 30 分钟）（v1.9.5）
+- **播放器报错 = 音源失败**：立即记失败并换源，不再对着死链重试（v1.9.7）
+- **手动换源**：播放详情页底部按钮，清掉这首歌的 URL 缓存并跳过当前源重新取链（v1.9.8，图标于 v1.9.9 统一为内置图标）
 
-### 三、音乐平台别名
+### 下载
+- 完整下载功能：独立下载页、进度/速度、暂停继续、全部开始、清除已完成
+- 已下载的歌曲优先播放本地文件
+- 下载目录可选（SAF 任意文件夹，含 TF 卡），文件名模板：`歌名 - 歌手` / `歌手 - 歌名` / `歌名`
+- 并发 2 个任务，进程被杀后任务列表保留，下次启动可继续
+- **修复**：选过下载目录后会把整个目录递归删除的严重 bug（v1.9.4）
 
-3.1 本项目内的官方音乐平台别名为本项目内对官方音乐平台的一个称呼，不包含恶意。如果官方音乐平台觉得不妥，可联系本项目更改或移除。
+### 缓存
+- 缓存位置全局化：**播放缓存 + 歌词缓存**都跟随「内部存储 / 外置存储(TF卡)」（v1.9.10）
+- 歌词缓存改为文件存储，外部模式落在 `<TF卡>/Android/data/cn.alx.music/files/alx-meta/lyric/`
+- 设置里显示真实落盘路径、占用大小，支持分项清空（播放 / 歌词 / 应用缓存）
 
-### 四、资源使用
+### 诊断与可视化
+- **「更多」页**（侧边栏）：实时日志（1.5s 刷新）、音源健康面板、运行状态（v1.9.6）
+- 默认开启日志：`files/logs/alx.log`，记录同步 / 用户 API / 下载 / 竞速打点
+- 关于页与更新通道均指向本项目
 
-4.1 本项目内使用的部分包括但不限于字体、图片等资源来源于互联网。如果出现侵权可联系本项目移除。
+### 交互优化
+- **收藏到歌单时，已存在的歌曲会置顶**（原版是提示「列表已经存在这首歌啦」并拒绝）（v1.9.3）
+- 包名改为 `cn.alx.music`，与原版互不影响
 
-### 五、免责声明
+## 安装
 
-5.1 由于使用本项目产生的包括由于本协议或由于使用或无法使用本项目而引起的任何性质的任何直接、间接、特殊、偶然或结果性损害（包括但不限于因商誉损失、停工、计算机故障或故障引起的损害赔偿，或任何及所有其他商业损害或损失）由使用者负责。
+到 [Releases](../../releases) 下载：
 
-### 六、使用限制
+- `ALXMusic-v<版本>-arm64-v8a.apk` —— 绝大多数手机
+- `ALXMusic-v<版本>-universal.apk` —— 不确定 ABI 时用这个
 
-6.1 本项目完全免费，且开源发布于 GitHub 面向全世界人用作对技术的学习交流。本项目不对项目内的技术可能存在违反当地法律法规的行为作保证。
+签名固定，可直接覆盖升级。与原版 LX Music 是**两个独立应用**，数据不互通。
 
-6.2 **禁止在违反当地法律法规的情况下使用本项目。** 对于使用者在明知或不知当地法律法规不允许的情况下使用本项目所造成的任何违法违规行为由使用者承担，本项目不承担由此造成的任何直接、间接、特殊、偶然或结果性责任。
+## 构建
 
-### 七、版权保护
+需要 JDK 17、Android SDK Platform 36 / Build-Tools 35 / NDK 26。
 
-7.1 音乐平台不易，请尊重版权，支持正版。
+```bash
+npm ci
+cd android
+./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
+```
 
-### 八、非商业性质
+产物在 `android/app/build/outputs/apk/release/`。
 
-8.1 本项目仅用于对技术可行性的探索及研究，不接受任何商业（包括但不限于广告等）合作及捐赠。
+## 已知限制
 
-### 九、接受协议
+- **封面图的磁盘缓存无法迁移**：RN 的图片组件把图缓存在系统缓存目录，路径在原生层写死，不改原生做不到
+- 移动端自定义源运行在受限的 QuickJS 环境里，只有 `setTimeout`，没有 `setInterval` / `fetch` / `require`
+- 音源是第三方社区脚本，接口随时可能失效，这不是客户端能解决的
 
-9.1 若你使用了本项目，即代表你接受本协议。
+## 协议与致谢
+
+基于 [lyswhut/lx-music-mobile](https://github.com/lyswhut/lx-music-mobile)（Apache-2.0），保留了完整的上游提交历史。
+上游代码版权归 lyswhut 及所有贡献者所有。本分支的修改同样以 Apache-2.0 发布。
+
+## 免责声明
+
+本项目仅供学习与研究使用，不提供任何音乐内容，也不内置任何音源。
+所有音乐版权归各平台及版权方所有，请支持正版。使用第三方音源造成的任何后果由使用者自行承担。
 
 ---
 
-若对此有疑问请 mail to: lyswhut+qq.com (请将 `+` 替换成 `@`)
+<sub>变更明细见 [CHANGELOG.md](./CHANGELOG.md) 与 [ALX-README.md](./ALX-README.md)</sub>
