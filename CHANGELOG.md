@@ -5,6 +5,22 @@
 
 ## ALX 定制版
 
+### [1.9.16-alx] - 2026-11-05
+
+版本号 `1.9.16-alx`，versionCode **10934**。
+
+#### 修复
+
+- **进度条跑出屏幕**：进度比例没做钳位，播放器上报的位置偶尔超过总时长 → 宽度超过 100%
+  - `setNowPlayTime` / `setMaxplayTime` / `setProgress` 全部改为 `clamp(0, 1)`，位置也钳到总时长
+- **`setProgress` 比例公式写错**：`nowPlayTime / currentTime`（恒等于 1，进度条会瞬间拉满），改为 `currentTime / totalTime`；`totalTime` 缺省时回退到当前 maxPlayTime
+- UI 层（`Progress` / `ProgressBar`）再加一层宽度钳位，作为兜底
+
+#### 新增
+
+- **进度跳变诊断**：播放中如果位置跳变异常（单次前进 > 3 秒且超过正常速度 2 倍），会往日志写一条
+  `[ALX] progress jump {delta, elapsed, position, max}`，可在「更多 → 实时日志」看到，方便定位「1 秒走 3 秒」
+
 ### [1.9.15-alx] - 2026-11-05
 
 版本号 `1.9.15-alx`，versionCode **10933**。

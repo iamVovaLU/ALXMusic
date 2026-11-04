@@ -76,7 +76,8 @@ export const ProgressPlain = ({ progress, duration, buffered, paddingTop }: {
   // const { progress } = usePlayTimeBuffer()
   const theme = useTheme()
   // console.log(progress)
-  const progressStr: `${number}%` = `${progress * 100}%`
+  const safeProgress = Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 0))
+  const progressStr: `${number}%` = `${safeProgress * 100}%`
 
   const durationRef = useRef(duration)
   useEffect(() => {
@@ -106,7 +107,8 @@ const Progress = ({ progress, duration, buffered, paddingTop }: {
   const [draging, setDraging] = useState(false)
   const [dragProgress, setDragProgress] = useState(0)
   // console.log(progress)
-  const progressStr: `${number}%` = `${progress * 100}%`
+  const safeProgress = Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 0))
+  const progressStr: `${number}%` = `${safeProgress * 100}%`
 
   const durationRef = useRef(duration)
   useEffect(() => {

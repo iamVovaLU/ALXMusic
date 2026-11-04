@@ -1,6 +1,8 @@
 import { arrPush, arrUnshift, formatPlayTime2 } from '@/utils'
 import state from './state'
 
+const clampProgress = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0)
+
 type PlayerMusicInfoKeys = keyof LX.Player.MusicInfo
 const musicInfoKeys: PlayerMusicInfoKeys[] = Object.keys(state.musicInfo) as PlayerMusicInfoKeys[]
 
@@ -42,25 +44,34 @@ export default {
     global.state_event.playStateTextChanged(statusText)
   },
   setNowPlayTime(time: number) {
-    state.progress.nowPlayTime = time
-    state.progress.nowPlayTimeStr = formatPlayTime2(time)
-    state.progress.progress = state.progress.maxPlayTime ? time / state.progress.maxPlayTime : 0
+    const max = state.progress.maxPlayTime
+    // 播放器上报的位置偶尔会略微超过总长, 这里钳住, 否则进度条会画出屏幕
+    const safeTime = max > 0 ? Math.min(time, max) : Math.max(0, time)
+    state.progress.nowPlayTime = safeTime
+    state.progress.nowPlayTimeStr = formatPlayTime2(safeTime)
+    state.progress.progress = max > 0 ? clampProgress(safeTime / max) : 0
 
     global.state_event.playProgressChanged({ ...state.progress })
   },
   setMaxplayTime(time: number) {
-    state.progress.maxPlayTime = time
-    state.progress.maxPlayTimeStr = formatPlayTime2(time)
-    state.progress.progress = time ? state.progress.nowPlayTime / time : 0
+    const max = Number.isFinite(time) && time > 0 ? time : 0
+    state.progress.maxPlayTime = max
+    state.progress.maxPlayTimeStr = formatPlayTime2(max)
+    state.progress.progress = max > 0 ? clampProgress(state.progress.nowPlayTime / max) : 0
 
     global.state_event.playProgressChanged({ ...state.progress })
   },
-  setProgress(currentTime: number, totalTime: number) {
-    state.progress.nowPlayTime = currentTime
-    state.progress.nowPlayTimeStr = formatPlayTime2(currentTime)
-    state.progress.maxPlayTime = totalTime
-    state.progress.maxPlayTimeStr = formatPlayTime2(totalTime)
-    state.progress.progress = totalTime ? state.progress.nowPlayTime / currentTime : 0
+  setProgress(currentTime: number, totalTime?: number) {
+    const max: number = (typeof totalTime === 'number' && Number.isFinite(totalTime) && totalTime > 0)
+      ? totalTime
+      : (state.progress.maxPlayTime || 0)
+    const safeTime = max > 0 ? Math.min(Math.max(0, currentTime), max) : Math.max(0, currentTime)
+    state.progress.nowPlayTime = safeTime
+    state.progress.nowPlayTimeStr = formatPlayTime2(safeTime)
+    state.progress.maxPlayTime = max
+    state.progress.maxPlayTimeStr = formatPlayTime2(max)
+    // 原来是 nowPlayTime / currentTime, 恒等于 1, 进度条会直接拉满
+    state.progress.progress = max > 0 ? clampProgress(safeTime / max) : 0
 
     global.state_event.playProgressChanged({ ...state.progress })
   },

@@ -9,6 +9,7 @@ import playerState from '@/store/player/state'
 import settingState from '@/store/setting/state'
 import { onScreenStateChange } from '@/utils/nativeModules/utils'
 import { AppState } from 'react-native'
+import { log } from '@/utils/log'
 
 const delaySavePlayInfo = throttleBackgroundTimer(() => {
   void savePlayInfo({
@@ -26,10 +27,25 @@ export default () => {
 
   let isScreenOn = true
 
+  let lastPos = 0
+  let lastPosAt = 0
   const getCurrentTime = () => {
     let id = playerState.musicInfo.id
     void getPosition().then(position => {
       if (!position || id != playerState.musicInfo.id) return
+      // 诊断: 位置跳变异常时留个记录, 方便定位「1 秒走 3 秒」的问题
+      if (playerState.isPlay) {
+        const now = Date.now()
+        const elapsed = (now - lastPosAt) / 1000
+        if (lastPosAt && elapsed > 0.2) {
+          const delta = position - lastPos
+          if (delta > 3 && delta > elapsed * 2) {
+            log.warn('[ALX] progress jump', { delta, elapsed, position, max: playerState.progress.maxPlayTime })
+          }
+        }
+        lastPos = position
+        lastPosAt = now
+      }
       setNowPlayTime(position)
       if (!playerState.isPlay) return
 
