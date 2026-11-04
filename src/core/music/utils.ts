@@ -11,6 +11,15 @@ import settingState from '@/store/setting/state'
 import { requestMsg } from '@/utils/message'
 import BackgroundTimer from 'react-native-background-timer'
 import { apis } from '@/utils/musicSdk/api-source'
+import {
+  initSourceHealth,
+  isCoolingDown,
+  recordSuccess,
+  recordFail,
+  healthScore,
+  probeAudioUrl,
+  pushEvent,
+} from './sourceHealth'
 
 
 const getOtherSourcePromises = new Map()
@@ -229,6 +238,78 @@ export const getPlayQuality = (highQuality: LX.Quality, musicInfo: LX.Music.Musi
   return type
 }
 
+const currentApiSource = () => settingState.setting['common.apiSource'] || ''
+
+/**
+ * 并行竞速换源: 同时向多个"健康"的源要链接, 第一个**经过验证真的能播**的胜出.
+ * 和原来的串行重试相比: 慢源不再拖住后面, 死链不会直接被当成成功.
+ */
+export const raceOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSource, maxParallel = 4 }: {
+  musicInfos: LX.Music.MusicInfoOnline[]
+  quality?: LX.Quality
+  onToggleSource: (musicInfo?: LX.Music.MusicInfoOnline) => void
+  maxParallel?: number
+}): Promise<{ url: string, musicInfo: LX.Music.MusicInfoOnline, quality: LX.Quality, isFromCache: boolean }> => {
+  await initSourceHealth()
+  const apiSource = currentApiSource()
+  const candidates: LX.Music.MusicInfoOnline[] = []
+  for (const mi of musicInfos) {
+    if (!assertApiSupport(mi.source)) continue
+    if (isCoolingDown(apiSource, mi.source)) continue
+    const q = quality ?? getPlayQuality(settingState.setting['player.playQuality'], mi)
+    if (!mi.meta._qualitys[q]) continue
+    candidates.push(mi)
+  }
+  if (!candidates.length) throw new Error(global.i18n.t('toggle_source_failed'))
+
+  candidates.sort((a, b) => healthScore(apiSource, b.source) - healthScore(apiSource, a.source))
+  const batch = candidates.slice(0, maxParallel)
+  pushEvent(`开始竞速: ${batch.map(m => m.source).join(' / ')}`)
+
+  return new Promise((resolve, reject) => {
+    let pending = batch.length
+    let lastErr: any = null
+    let settled = false
+
+    const fail = (mi: LX.Music.MusicInfoOnline, t0: number, err: any) => {
+      recordFail(apiSource, mi.source, Date.now() - t0, err)
+      lastErr = err
+      pending--
+      if (pending <= 0 && !settled) {
+        settled = true
+        pushEvent(`全部失败 (${batch.map(m => m.source).join(',')})`)
+        reject(lastErr ?? new Error(global.i18n.t('toggle_source_failed')))
+      }
+    }
+
+    for (const mi of batch) {
+      const t0 = Date.now()
+      const q = quality ?? getPlayQuality(settingState.setting['player.playQuality'], mi)
+      let reqPromise: Promise<{ url: string, type: LX.Quality }>
+      try {
+        reqPromise = musicSdk[mi.source].getMusicUrl(toOldMusicInfo(mi), q).promise
+      } catch (err) {
+        reqPromise = Promise.reject(err)
+      }
+      // eslint-disable-next-line @typescript-eslint/promise-function-async
+      reqPromise.then(async({ url, type }) => {
+        if (settled) return
+        const ok = await probeAudioUrl(url)
+        if (!ok) throw new Error('url probe failed')
+        if (settled) return
+        const ms = Date.now() - t0
+        recordSuccess(apiSource, mi.source, ms)
+        pushEvent(`${mi.source} 命中 ${type} ${ms}ms`)
+        settled = true
+        onToggleSource(mi)
+        resolve({ musicInfo: mi, url, quality: type, isFromCache: false })
+      }).catch(err => {
+        fail(mi, t0, err)
+      })
+    }
+  })
+}
+
 export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSource, isRefresh, retryedSource = [] }: {
   musicInfos: LX.Music.MusicInfoOnline[]
   quality?: LX.Quality
@@ -315,12 +396,19 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
     return getOtherSource(musicInfo).then(otherSource => {
       // console.log('find otherSource', otherSource.length)
       if (otherSource.length) {
-        return getOnlineOtherSourceMusicUrl({
-          musicInfos: [...otherSource],
+        return raceOtherSourceMusicUrl({
+          musicInfos: otherSource.filter(item => item.source != musicInfo.source),
           onToggleSource,
           quality,
-          isRefresh,
-          retryedSource: [musicInfo.source],
+        }).catch(() => {
+          // 竞速全灭时退回原来的串行逻辑, 保证还有最后一条路
+          return getOnlineOtherSourceMusicUrl({
+            musicInfos: [...otherSource],
+            onToggleSource,
+            quality,
+            isRefresh,
+            retryedSource: [musicInfo.source],
+          })
         })
       }
       throw err
