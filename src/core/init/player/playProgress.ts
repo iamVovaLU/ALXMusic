@@ -27,47 +27,79 @@ export default () => {
 
   let isScreenOn = true
 
-  let lastPos = 0
-  let lastPosAt = 0
   let seekAt = 0
   let lastMax = 0
-  let tickCount = 0
+  // 进度条走"锚点时钟": 以 (真实位置, 时间戳) 为锚, 用墙上时间推算显示值.
+  // 底层 getPosition() 偶尔会短时间内跑飞(实测一次 +30s), 直接拿它画条子就会跳;
+  // 但连续两次同向偏离锚点超过阈值, 说明是真的跳转(拖动/通知栏/歌词跳转), 重新锚定.
+  let anchorPos = 0
+  let anchorAt = 0
+  let devDir = 0
+  let devCount = 0
+  let devPrev = 0
+  let needAnchor = true
   const getCurrentTime = () => {
     let id = playerState.musicInfo.id
     void getPosition().then(position => {
       if (!position || id != playerState.musicInfo.id) return
       const now = Date.now()
-      // 切歌 / 拖动进度条后重新起算, 不做限速
-      if (playerState.progress.maxPlayTime != lastMax) {
-        lastMax = playerState.progress.maxPlayTime
-        lastPos = position
-        lastPosAt = now
+      const max = playerState.progress.maxPlayTime
+      const rate = Math.max(settingState.setting['player.playbackRate'] || 1, 0.1)
+      // 切歌 / 恢复播放 / 时长变化: 直接以当前真实位置重新起锚
+      if (needAnchor || max != lastMax) {
+        needAnchor = false
+        lastMax = max
+        anchorPos = position
+        anchorAt = now
+        devDir = 0
+        devCount = 0
         setNowPlayTime(position)
         return
       }
-      if (playerState.isPlay && lastPosAt && now - seekAt > 1500) {
-        const elapsed = (now - lastPosAt) / 1000
-        if (elapsed > 0.15) {
-          const rate = settingState.setting['player.playbackRate'] || 1
-          const delta = position - lastPos
-          // 单次允许的前进量: 真实时间 × 倍速, 留一点抖动余量
-          const allowed = elapsed * Math.max(rate, 0.1) * 1.2 + 0.4
-          // 前 12 个采样点打个快照, 方便判断底层到底报了多少
-          if (tickCount < 12) {
-            tickCount++
-            log.info('[ALX] tick', { pos: Number(position.toFixed(2)), delta: Number(delta.toFixed(2)), elapsed: Number(elapsed.toFixed(2)), rate, max: playerState.progress.maxPlayTime })
-          }
-          // 只纠正「跑太快」, 往回跳可能是循环/切段, 放行
-          if (delta > allowed) {
-            const corrected = Math.max(0, lastPos + elapsed * rate)
-            log.warn('[ALX] progress jump', { delta: Number(delta.toFixed(2)), elapsed: Number(elapsed.toFixed(2)), position, corrected: Number(corrected.toFixed(2)), rate, max: playerState.progress.maxPlayTime })
-            position = corrected
-          }
+      // 拖动进度条后的一小段时间内, 不用推算值覆盖真实位置
+      if (playerState.isPlay && now - seekAt > 1500) {
+        const estimate = anchorPos + (now - anchorAt) / 1000 * rate
+        const deviation = position - estimate
+        const jump = (reanchor: string) => {
+          log.warn('[ALX] progress re-anchor', {
+            why: reanchor,
+            pos: Number(position.toFixed(2)),
+            estimate: Number(estimate.toFixed(2)),
+            deviation: Number(deviation.toFixed(2)),
+            rate,
+            max,
+          })
+          anchorPos = position
+          anchorAt = now
+          devDir = 0
+          devCount = 0
         }
+        if (deviation < -1) {
+          // 位置比推算值靠后: 缓冲/卡顿. 连续两次就认位置为准, 别让条子空跑
+          devCount++
+          devDir = -1
+          if (devCount >= 2) jump('stall')
+        } else if (deviation > 1.2) {
+          // 位置比推算值靠前: 要么是真跳转(拖动/通知栏), 要么是底层位置跑飞.
+          // 真跳转的偏移量会保持稳定, 跑飞的偏移量会一路增长 -- 用这个区分.
+          const stable = devDir == 1 && Math.abs(deviation - devPrev) < 0.5
+          devCount = stable ? devCount + 1 : 1
+          devDir = 1
+          devPrev = deviation
+          if (devCount >= 3) jump('seek')
+        } else {
+          devDir = 0
+          devCount = 0
+        }
+      } else if (!playerState.isPlay) {
+        // 暂停期间不推算, 以真实位置为准
+        anchorPos = position
+        anchorAt = now
       }
-      lastPos = position
-      lastPosAt = now
-      setNowPlayTime(position)
+      const displayPos = playerState.isPlay
+        ? anchorPos + (now - anchorAt) / 1000 * rate
+        : position
+      setNowPlayTime(displayPos)
       if (!playerState.isPlay) return
 
       if (settingState.setting['player.isSavePlayTime'] && !playerState.playMusicInfo.isTempPlay && isScreenOn) {
@@ -100,6 +132,7 @@ export default () => {
   }
   const startUpdateTimeout = () => {
     if (!isScreenOn) return
+    needAnchor = true
     clearUpdateTimeout()
     updateTimeout = BackgroundTimer.setInterval(() => {
       getCurrentTime()
@@ -110,8 +143,11 @@ export default () => {
   const setProgress = (time: number, maxTime?: number) => {
     if (!playerState.musicInfo.id) return
     seekAt = Date.now()
-    lastPos = time
-    lastPosAt = Date.now()
+    // 以跳转目标重新起锚, 后续按墙上时间推算
+    anchorPos = time
+    anchorAt = seekAt
+    devDir = 0
+    devCount = 0
     // console.log('setProgress', time, maxTime)
     setNowPlayTime(time)
     void setCurrentTime(time)
@@ -123,8 +159,7 @@ export default () => {
 
 
   const handlePlay = () => {
-    tickCount = 0
-    lastPosAt = 0
+    needAnchor = true
     void getMaxTime()
     // prevProgressStatus = 'normal'
     // handleSetTaskBarState(playProgress.progress, prevProgressStatus)
