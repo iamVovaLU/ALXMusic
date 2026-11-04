@@ -1,4 +1,66 @@
-# lx-music-mobile change log
+# ALXMusic 变更记录
+
+本仓库是 [LX Music 移动版](https://github.com/lyswhut/lx-music-mobile) 的个人定制分支。
+下面是 ALX 定制部分；上游历史见文件后半部分（"上游变更记录"）。
+
+## ALX 定制版
+
+### [1.9.4-alx] - 2026-11-04
+
+版本号 `1.9.4-alx`，versionCode **10922**。
+
+#### 修复
+
+- **修复「选过下载目录后会清空整个下载目录」的严重 bug**
+  - 原因：下载目录是 SAF tree URI（`content://…/tree/primary%3ADownload`），
+    代码按字符串拼文件名得到 `…/tree/primary%3ADownload/歌名.mp3`；
+    Android 的 `DocumentFile.fromTreeUri()` 会忽略末尾多出来的段，直接解析回**目录本身**；
+    而底层 `unlink` 是 `deleteRecursive`（先递归删子项再删目录）→ 整个目录被清空
+  - 修复：删除前先在父目录里按名字找到真正的 document URI；并且**任何情况下都不删除目录**
+  - 影响范围：下载模块的 `removeFile()` / 删除单个任务 / 清空已完成
+
+#### 新增
+
+- 设置 → 其他 → 播放缓存：显示**实际落盘路径**
+  - 选了 TF 卡但没检测到卡时，直接提示「会回落到内部存储」（以前是静默回落）
+- 播放缓存**占用大小**显示（递归统计，含子目录）
+- 「刷新占用」「清空缓存」按钮（清空有二次确认，只清 `TrackPlayer` 目录内容，目录本身保留）
+
+#### 变更
+
+- 清空缓存后提示需要重启 App（ExoPlayer 的 SimpleCache 只在启动时创建）
+
+### [1.9.3-alx] - 2026-11-04
+
+版本号 `1.9.3-alx`，versionCode **10921**（首个可安装构建）。
+
+#### 新增
+
+- **重新实现下载功能**（上游移动版把下载整块注释掉了）
+  - 歌曲菜单（我的列表 / 搜索结果）→ 下载
+  - 独立的「下载」标签页：进度、速度、暂停/继续、全部开始、清除已完成
+  - 已下载的歌曲优先播放本地文件
+  - 下载目录可选（SAF 选任意文件夹，包括 TF 卡），默认走应用私有目录
+  - 文件名模板沿用设置：`歌名 - 歌手` / `歌手 - 歌名` / `歌名`
+  - 并发 2 个任务；进程被杀后任务列表会保存，下次启动可继续
+- **播放缓存目录可切换到外置存储（TF 卡）**
+  - 写入 `<TF卡>/Android/data/cn.alx.music/files/TrackPlayer`
+  - 需要给 `react-native-track-player` 打原生补丁（`MusicModule.setCachePath` + `LocalPlayback` 读偏好设置）
+  - 切换后需重启 App 生效
+- **收藏到歌单时，已存在则置顶**（原行为是提示「列表已经存在这首歌啦」并拒绝）
+
+#### 变更
+
+- 默认开启日志（同步日志 / 用户 API 日志），日志文件 `files/logs/alx.log`
+- 包名改为 `cn.alx.music`，可与原版 LX Music 共存安装
+
+### [1.9.2-alx] - 2026-11-03
+
+从上游 `v1.9.2` 拉出分支开始定制，此版本无 ALX 提交。
+
+---
+
+# 上游变更记录（lx-music-mobile）
 
 All notable changes to this project will be documented in this file.
 
