@@ -8,6 +8,7 @@ import dataInit from './dataInit'
 import initSync from './sync'
 import initCommonState from './common'
 import { initDeeplink } from './deeplink'
+import { initListenStats } from '@/core/stats/listenStats'
 import { setApiSource } from '@/core/apiSource'
 import commonActions from '@/store/common/action'
 import settingState from '@/store/setting/state'
@@ -51,6 +52,7 @@ export default async() => {
   setApiSource(setting['common.apiSource'])
   bootLog('Api inited.')
 
+  void initListenStats()
   registerPlaybackService()
   bootLog('Playback Service Registered.')
   await initPlayer(setting)
