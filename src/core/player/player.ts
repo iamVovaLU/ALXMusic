@@ -19,7 +19,7 @@ import {
   clearTempPlayeList,
   removeTempPlayList,
 } from '@/core/player/tempPlayList'
-import { getMusicUrl, getPicPath, getLyricInfo } from '@/core/music'
+import { getMusicUrl, getMusicUrlRacing, getPicPath, getLyricInfo } from '@/core/music'
 import { getMusicUrlFromOtherSources } from '@/core/music/utils'
 import { saveMusicUrl } from '@/utils/data'
 import { requestMsg } from '@/utils/message'
@@ -108,14 +108,14 @@ const getMusicPlayUrl = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListIt
     isRefresh,
     allowToggleSource: false,
   }) : Promise.reject(new Error('not found'))).catch(async() => {
-    return getMusicUrl({
-      musicInfo,
-      isRefresh,
-      onToggleSource(mInfo) {
-        if (diffCurrentMusicInfo(musicInfo)) return
-        setStatusText(global.i18n.t('toggle_source_try'))
-      },
-    })
+    const onToggleSource = (mInfo?: LX.Music.MusicInfoOnline) => {
+      if (diffCurrentMusicInfo(musicInfo)) return
+      setStatusText(global.i18n.t('toggle_source_try'))
+    }
+    // ALX: 开着「全源竞速」时, 当前源 + 所有匹配到的源同时上, 先到先得
+    return settingState.setting['player.raceAllSources']
+      ? getMusicUrlRacing({ musicInfo, onToggleSource })
+      : getMusicUrl({ musicInfo, isRefresh, onToggleSource })
   }).then(url => {
     if (global.lx.isPlayedStop || diffCurrentMusicInfo(musicInfo)) return null
 

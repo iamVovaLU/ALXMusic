@@ -7,6 +7,8 @@ import Text from '@/components/common/Text'
 import { createStyle, toast, confirmDialog } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
 import settingState from '@/store/setting/state'
+import { useSettingValue } from '@/store/setting/hook'
+import { updateSetting } from '@/core/common'
 import { getStats, getEvents, clearStats, initSourceHealth, type SourceStat, type HealthEvent } from '@/core/music/sourceHealth'
 
 const SOURCE_NAMES: Record<string, string> = {
@@ -35,6 +37,7 @@ const statusOf = (s: SourceStat) => {
 
 export default memo(() => {
   const theme = useTheme()
+  const raceAll = useSettingValue('player.raceAllSources')
   const [stats, setStats] = useState<SourceStat[]>([])
   const [events, setEvents] = useState<HealthEvent[]>([])
 
@@ -73,11 +76,26 @@ export default memo(() => {
       </View>
       <View style={styles.row}>
         <Text size={11} color={theme['c-350']}>
-          播放失败时不再串行一个个试：同时向最多 4 个最近的健康源要链接，
-          第一个返回且验证可播（HTTP 200/206 + 非网页）的胜出；连续失败 3 次的源会进入冷却，按 1→2→4… 分钟递增。
+          取链接不再串行挨个试：多个源同时抢，第一个返回且验证可播（HTTP 200/206 + 非网页）的胜出。
+          连续失败 3 次的源进入冷却，按 1→2→4… 分钟递增；开关关闭时只在当前源失败后才竞速。
         </Text>
       </View>
 
+      <View style={styles.btnRow}>
+        <Text size={12} color={theme['c-350']}>全源竞速：</Text>
+        <Button onPress={() => { updateSetting({ 'player.raceAllSources': true }); toast('已开启，之后每次播放都会多源并行') }}>
+          <Text size={12} color={raceAll ? theme['c-primary'] : theme['c-350']}>开</Text>
+        </Button>
+        <Button onPress={() => { updateSetting({ 'player.raceAllSources': false }); toast('已关闭，改为失败后才换源') }}>
+          <Text size={12} color={raceAll ? theme['c-350'] : theme['c-primary']}>关</Text>
+        </Button>
+      </View>
+      <View style={styles.row}>
+        <Text size={10} color={theme['c-350']}>
+          开：每次播放都把当前源和所有匹配到的源一起放出去抢，先返回且验证通过的直接用（会多出几次搜索请求）。
+          关：只有当前源失败时才竞速。
+        </Text>
+      </View>
       <View style={styles.btnRow}>
         <Button onPress={refresh}><Text size={12} color={theme['c-350']}>刷新</Text></Button>
         <Button onPress={handleClear}><Text size={12} color={theme['c-350']}>清空统计</Text></Button>

@@ -17,6 +17,8 @@ import {
   getPicUrl as getLocalPicUrl,
   getLyricInfo as getLocalLyricInfo,
 } from './local'
+import { getMusicUrlFromAllSources } from './utils'
+import { saveMusicUrl } from '@/utils/data'
 import { getFilePath as getDownloadedFilePath } from '@/core/download'
 import { existsFile } from '@/utils/fs'
 import { log } from '@/utils/log'
@@ -54,6 +56,43 @@ export const getMusicUrl = async({
     }
     return getOnlineMusicUrl({ musicInfo, isRefresh, quality, onToggleSource, allowToggleSource })
   }
+}
+
+/**
+ * 全源竞速取链接: 当前源 + 所有匹配到的其他源同时上, 先到先得 (设置可关)
+ * 不走 URL 缓存, 保证每次都是新鲜的链接
+ */
+export const getMusicUrlRacing = async({
+  musicInfo,
+  quality,
+  onToggleSource,
+}: {
+  musicInfo: LX.Music.MusicInfo | LX.Download.ListItem
+  quality?: LX.Quality
+  onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
+}): Promise<string> => {
+  const info = 'progress' in musicInfo ? musicInfo.metadata.musicInfo : musicInfo
+  if (info.source == 'local') {
+    return getLocalMusicUrl({ musicInfo: info as LX.Music.MusicInfoLocal, isRefresh: false, onToggleSource })
+  }
+  const downloadedPath = getDownloadedFilePath(info as LX.Music.MusicInfo)
+  if (downloadedPath) {
+    try {
+      if (await existsFile(downloadedPath)) {
+        log.info('[ALX] play downloaded file', info.name, downloadedPath)
+        return downloadedPath
+      }
+    } catch (err) {
+      log.warn('[ALX] check downloaded file failed', err)
+    }
+  }
+  const result = await getMusicUrlFromAllSources({
+    musicInfo: info as LX.Music.MusicInfoOnline,
+    quality,
+    onToggleSource,
+  })
+  void saveMusicUrl(result.musicInfo, result.quality, result.url)
+  return result.url
 }
 
 export const getPicPath = async({

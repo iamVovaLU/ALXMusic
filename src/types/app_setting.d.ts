@@ -165,6 +165,7 @@ declare global {
        * 其他应用播放声音时是否自动暂停
        */
       'player.isHandleAudioFocus': boolean
+      'player.raceAllSources': boolean
 
       /**
        * 是否启用音频卸载功能（这可以节省耗电量，没有播放异常问题不建议关闭）

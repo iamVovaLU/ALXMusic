@@ -311,6 +311,86 @@ export const raceOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSour
 }
 
 /**
+ * 全源竞速: 每次取链接都让「当前源 + 所有匹配到的其他源」同时上,
+ * 谁先返回且通过验证就用谁. 搜索和取链是并行的, 当前源不会因此变慢.
+ */
+export const getMusicUrlFromAllSources = async({ musicInfo, quality, onToggleSource }: {
+  musicInfo: LX.Music.MusicInfoOnline
+  quality?: LX.Quality
+  onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
+}): Promise<{ url: string, quality: LX.Quality, source: string, musicInfo: LX.Music.MusicInfoOnline }> => {
+  await initSourceHealth()
+  const apiSource = currentApiSource()
+  let settled = false
+  let pending = 0
+  let searchDone = false
+  let lastErr: any = null
+  const tried = new Set<string>()
+
+  return new Promise((resolve, reject) => {
+    const finishIfDone = () => {
+      if (settled || !searchDone || pending > 0) return
+      settled = true
+      pushEvent('全源竞速: 全部失败')
+      reject(lastErr ?? new Error(global.i18n.t('toggle_source_failed')))
+    }
+
+    const attempt = (mi: LX.Music.MusicInfoOnline) => {
+      if (settled || tried.has(mi.source)) return
+      if (!assertApiSupport(mi.source)) return
+      if (isCoolingDown(apiSource, mi.source)) {
+        pushEvent(`${mi.source} 冷却中, 跳过`)
+        return
+      }
+      const q = quality ?? getPlayQuality(settingState.setting['player.playQuality'], mi)
+      if (!mi.meta._qualitys[q]) return
+      tried.add(mi.source)
+      pending++
+      const t0 = Date.now()
+      let reqPromise: Promise<{ url: string, type: LX.Quality }>
+      try {
+        reqPromise = musicSdk[mi.source].getMusicUrl(toOldMusicInfo(mi), q).promise
+      } catch (err) {
+        reqPromise = Promise.reject(err)
+      }
+      // eslint-disable-next-line @typescript-eslint/promise-function-async
+      reqPromise.then(async({ url, type }) => {
+        if (settled) return
+        const ok = await probeAudioUrl(url)
+        if (!ok) throw new Error('url probe failed')
+        if (settled) return
+        const ms = Date.now() - t0
+        recordSuccess(apiSource, mi.source, ms)
+        pushEvent(`${mi.source} 命中 ${type} ${ms}ms (全源竞速)`)
+        settled = true
+        onToggleSource?.(mi)
+        resolve({ url, quality: type, source: mi.source, musicInfo: mi })
+      }).catch((err: any) => {
+        recordFail(apiSource, mi.source, Date.now() - t0, err)
+        lastErr = err
+      }).finally(() => {
+        pending--
+        finishIfDone()
+      })
+    }
+
+    pushEvent(`全源竞速开始: ${musicInfo.source}`)
+    attempt(musicInfo)
+    // 其他源需要先做一次匹配搜索, 放到后台并行, 不阻塞当前源
+    void getOtherSource(musicInfo, true).then(list => {
+      searchDone = true
+      for (const mi of list) {
+        if (mi.source != musicInfo.source) attempt(mi)
+      }
+      finishIfDone()
+    }).catch(() => {
+      searchDone = true
+      finishIfDone()
+    })
+  })
+}
+
+/**
  * 强制从「别的源」取链接 (播放器已经报错, 说明当前源给的链接是死的).
  * 不做"先试当前源"这一步, 直接换源竞速.
  */
