@@ -317,7 +317,7 @@ export const raceOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSour
 export const getMusicUrlFromOtherSources = async({ musicInfo, quality }: {
   musicInfo: LX.Music.MusicInfoOnline
   quality?: LX.Quality
-}): Promise<{ url: string, quality: LX.Quality }> => {
+}): Promise<{ url: string, quality: LX.Quality, source: string }> => {
   const otherSource = await getOtherSource(musicInfo, true)
   const list = otherSource.filter(item => item.source != musicInfo.source)
   if (!list.length) throw new Error(global.i18n.t('toggle_source_failed'))
@@ -326,7 +326,7 @@ export const getMusicUrlFromOtherSources = async({ musicInfo, quality }: {
     quality,
     onToggleSource: () => {},
   })
-  return { url: result.url, quality: result.quality }
+  return { url: result.url, quality: result.quality, source: result.musicInfo.source }
 }
 
 export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSource, isRefresh, retryedSource = [] }: {

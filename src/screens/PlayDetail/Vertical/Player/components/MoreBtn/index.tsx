@@ -4,10 +4,12 @@ import PlayModeBtn from './PlayModeBtn'
 import MusicAddBtn from './MusicAddBtn'
 import DesktopLyricBtn from './DesktopLyricBtn'
 import CommentBtn from './CommentBtn'
+import SwitchSourceBtn from './SwitchSourceBtn'
 
 export default () => {
   return (
     <View style={styles.container}>
+      <SwitchSourceBtn />
       <DesktopLyricBtn />
       <MusicAddBtn />
       <PlayModeBtn />
