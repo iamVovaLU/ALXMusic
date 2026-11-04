@@ -1,3 +1,7 @@
+> **本仓库是 [LX Music 移动版](https://github.com/lyswhut/lx-music-mobile) 的个人定制分支（ALXMusic）**。
+> 包名 `cn.alx.music`，与原版可共存。改动清单见 [ALX-README.md](./ALX-README.md)。
+> 上游代码版权归 lyswhut 及贡献者所有，遵循 Apache-2.0 协议。
+
 <p align="center"><a href="https://github.com/lyswhut/lx-music-mobile"><img width="200" src="https://github.com/lyswhut/lx-music-mobile/blob/master/doc/images/icon.png" alt="lx-music logo"></a></p>
 
 <h1 align="center">LX Music 移动版</h1>

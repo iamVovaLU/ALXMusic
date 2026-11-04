@@ -1,5 +1,19 @@
 import TrackPlayer from 'react-native-track-player'
 import { updateOptions, setVolume, setPlaybackRate, migratePlayerCache } from './utils'
+import { getExternalStoragePaths } from '@/utils/fs'
+import settingState from '@/store/setting/state'
+import { log } from '@/utils/log'
+
+const getExternalCachePath = async() => {
+  try {
+    const paths = await getExternalStoragePaths(true)
+    if (!paths.length) return ''
+    return `${paths[0]}/Android/data/cn.alx.music/files/TrackPlayer`
+  } catch (err) {
+    log.warn('[ALX] get external storage path failed', err)
+    return ''
+  }
+}
 
 // const listenEvent = () => {
 //   TrackPlayer.addEventListener('playback-error', err => {
@@ -26,6 +40,13 @@ const initial = async({ volume, playRate, cacheSize, isHandleAudioFocus, isEnabl
   if (global.lx.playerStatus.isIniting || global.lx.playerStatus.isInitialized) return
   global.lx.playerStatus.isIniting = true
   console.log('Cache Size', cacheSize * 1024)
+  const cachePath = settingState.setting['player.cacheLocation'] == 'external' ? await getExternalCachePath() : ''
+  try {
+    await (TrackPlayer as any).setCachePath(cachePath)
+    log.info('[ALX] player cache path:', cachePath || '(internal)')
+  } catch (err) {
+    log.error('[ALX] set player cache path failed', err)
+  }
   await migratePlayerCache()
   await TrackPlayer.setupPlayer({
     maxCacheSize: cacheSize * 1024,

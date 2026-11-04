@@ -1,7 +1,7 @@
 {
-  "name": "lx-music-mobile",
-  "version": "1.9.2",
-  "versionCode": 79,
+  "name": "ALXMusic",
+  "version": "1.9.4-alx",
+  "versionCode": 10922,
   "private": true,
   "scripts": {
     "dev": "react-native run-android --active-arch-only",
@@ -20,7 +20,9 @@
     "clear": "cd android && gradlew.bat clean",
     "clear:full": "git clean -fdx -e android/keystore.properties -e android/app/*.keystore",
     "build:theme": "node src/theme/themes/createThemes.js",
-    "publish": "node publish"
+    "publish": "node publish",
+    "postinstall": "node scripts/patch-rntp.js",
+    "alx:patch": "node scripts/patch-rntp.js"
   },
   "engines": {
     "node": ">= 18",

@@ -15,6 +15,7 @@ import ListMusicSearch, { type ListMusicSearchType } from './ListMusicSearch'
 import MusicPositionModal, { type MusicPositionModalType } from './MusicPositionModal'
 import MetadataEditModal, { type MetadataEditType, type MetadataEditProps } from '@/components/MetadataEditModal'
 import MusicToggleModal, { type MusicToggleModalType } from './MusicToggleModal'
+import { addTasks } from '@/core/download'
 
 
 export default () => {
@@ -165,6 +166,7 @@ export default () => {
         onChangePosition={info => musicPositionModalRef.current?.show(info)}
         onToggleSource={info => musicToggleModalRef.current?.show(info)}
         onRemoveCache={info => { void clearMusicUrl(info.musicInfo) }}
+        onDownload={info => { void addTasks([info.musicInfo]) }}
       />
       <MetadataEditModal
         ref={metadataEditTypeRef}

@@ -17,6 +17,9 @@ import {
   getPicUrl as getLocalPicUrl,
   getLyricInfo as getLocalLyricInfo,
 } from './local'
+import { getFilePath as getDownloadedFilePath } from '@/core/download'
+import { existsFile } from '@/utils/fs'
+import { log } from '@/utils/log'
 
 
 export const getMusicUrl = async({
@@ -37,6 +40,18 @@ export const getMusicUrl = async({
   } else if (musicInfo.source == 'local') {
     return getLocalMusicUrl({ musicInfo, isRefresh, onToggleSource, allowToggleSource })
   } else {
+    // ALXMusic: 优先播放已下载的文件
+    const downloadedPath = getDownloadedFilePath(musicInfo)
+    if (downloadedPath) {
+      try {
+        if (await existsFile(downloadedPath)) {
+          log.info('[ALX] play downloaded file', musicInfo.name, downloadedPath)
+          return downloadedPath
+        }
+      } catch (err) {
+        log.warn('[ALX] check downloaded file failed', err)
+      }
+    }
     return getOnlineMusicUrl({ musicInfo, isRefresh, quality, onToggleSource, allowToggleSource })
   }
 }

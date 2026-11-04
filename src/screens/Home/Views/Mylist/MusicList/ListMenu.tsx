@@ -25,6 +25,7 @@ export interface ListMenuProps {
   onToggleSource: (selectInfo: SelectInfo) => void
   onMusicSourceDetail: (selectInfo: SelectInfo) => void
   onRemoveCache: (selectInfo: SelectInfo) => void
+  onDownload: (selectInfo: SelectInfo) => void
   onDislikeMusic: (selectInfo: SelectInfo) => void
   onRemove: (selectInfo: SelectInfo) => void
 }
@@ -71,7 +72,7 @@ export default forwardRef<ListMenuType, ListMenuProps>((props, ref) => {
     const menu = [
       { action: 'play', label: t('play') },
       { action: 'playLater', label: t('play_later') },
-      // { action: 'download', label: '下载' },
+      { action: 'download', disabled: isLocal, label: t('alx_download_menu') },
       { action: 'add', label: t('add_to') },
       { action: 'move', label: t('move_to') },
       { action: 'changePosition', label: t('change_position') },
@@ -147,6 +148,9 @@ export default forwardRef<ListMenuType, ListMenuProps>((props, ref) => {
         break
       case 'removeCache':
         props.onRemoveCache(selectInfo)
+        break
+      case 'download':
+        props.onDownload(selectInfo)
         break
       case 'dislike':
         props.onDislikeMusic(selectInfo)

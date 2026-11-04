@@ -352,6 +352,16 @@ declare global {
       'download.fileName': '歌名 - 歌手' | '歌手 - 歌名' | '歌名'
 
       /**
+       * 下载保存目录（Android SAF 目录 URI），为空则使用应用内目录
+       */
+      'download.savePath': string
+
+      /**
+       * 播放缓存位置（重启应用后生效）
+       */
+      'player.cacheLocation': 'internal' | 'external'
+
+      /**
        * 是否启用同步
        */
       'sync.enable': boolean

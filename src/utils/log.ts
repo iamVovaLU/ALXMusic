@@ -1,7 +1,8 @@
 // import { requestStoragePermission } from '@/utils/common'
-import { temporaryDirectoryPath, existsFile, appendFile, unlink, writeFile, readFile } from '@/utils/fs'
+import { privateStorageDirectoryPath, existsFile, appendFile, unlink, writeFile, readFile, mkdir } from '@/utils/fs'
 
-const logPath = temporaryDirectoryPath + '/error.log'
+const logDirPath = privateStorageDirectoryPath + '/logs'
+const logPath = logDirPath + '/alx.log'
 
 const logTools = {
   tempLog: [] as Array<{ time: string, type: 'LOG' | 'WARN' | 'ERROR', text: string }> | null,
@@ -11,9 +12,13 @@ const logTools = {
   },
   async initLogFile() {
     try {
+      try {
+        await mkdir(logDirPath)
+      } catch {}
       let isExists = await existsFile(logPath)
       // console.log(isExists)
       if (!isExists) await writeFile(logPath, '')
+      this.writeLog(`===== ALXMusic session start ${new Date().toLocaleString()} =====`)
       if (this.tempLog?.length) this.writeLog(this.tempLog.map(m => `${m.time} ${m.type} ${m.text}`).join('\n----lx log----\n'))
       this.tempLog = null
     } catch (err) {

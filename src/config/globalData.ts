@@ -44,8 +44,8 @@ global.lx = {
 
   // syncKeyInfo: {},
 
-  isEnableSyncLog: false,
-  isEnableUserApiLog: false,
+  isEnableSyncLog: true,
+  isEnableUserApiLog: true,
 
   playerTrackId: '',
 

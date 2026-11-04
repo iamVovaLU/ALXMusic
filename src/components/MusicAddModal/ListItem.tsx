@@ -5,6 +5,7 @@ import { BorderWidths } from '@/theme'
 import { createStyle, toast } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
 import { useMusicExistsList } from '@/store/list/hook'
+import { updateListMusicPosition } from '@/core/list'
 
 export default ({ listInfo, onPress, musicInfo, width }: {
   listInfo: LX.List.MyListInfo
@@ -17,7 +18,12 @@ export default ({ listInfo, onPress, musicInfo, width }: {
 
   const handlePress = () => {
     if (isExists) {
-      toast(global.i18n.t('list_add_tip_exists'))
+      // ALXMusic: 已存在时置顶而不是提示
+      void updateListMusicPosition(listInfo.id, 0, [musicInfo.id]).then(() => {
+        toast(global.i18n.t('list_add_tip_moved_top'))
+      }).catch(() => {
+        toast(global.i18n.t('list_add_tip_exists'))
+      })
       return
     }
     onPress(listInfo)
