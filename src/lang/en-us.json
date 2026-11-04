@@ -529,7 +529,7 @@
   "alx_download_waiting": "Waiting",
   "alx_download_summary": "{done} done / {total} total",
   "alx_download_dir": "Folder: ",
-  "alx_download_default_dir": "App download folder",
+  "alx_download_default_dir": "System Downloads folder",
   "alx_download_empty": "No downloads yet\nUse \"Download\" in a song menu",
   "alx_download_start_all": "Start all",
   "alx_download_start_all_tip": "Download queue started",

@@ -1,10 +1,10 @@
 import RNFS from 'react-native-fs'
 import { getMusicUrl as getOnlineMusicUrl } from '@/core/music/online'
-import { cp, stat, unlink, existsFile, readDir, privateStorageDirectoryPath, temporaryDirectoryPath, mkdir } from '@/utils/fs'
+import { cp, stat, unlink, existsFile, readDir, privateStorageDirectoryPath, temporaryDirectoryPath, mkdir, externalStorageDirectoryPath, writeFile } from '@/utils/fs'
 import { getData, saveData } from '@/plugins/storage'
 import settingState from '@/store/setting/state'
 import { log } from '@/utils/log'
-import { toast } from '@/utils/tools'
+import { toast, checkStoragePermissions, requestStoragePermission } from '@/utils/tools'
 
 // ALXMusic download manager.
 // NOTE: keep this module free of imports from '@/core/music' (circular imports).
@@ -103,9 +103,46 @@ const buildFileName = (musicInfo: LX.Music.MusicInfoOnline, ext: string) => {
   return sanitizeFileName(name) + '.' + ext
 }
 
+// 默认下载到系统公共下载目录: /storage/emulated/0/Download/ALXMusic
+const DEFAULT_DOWNLOAD_DIR = externalStorageDirectoryPath + '/Download/ALXMusic'
+
+// 公共目录不一定可写 (Android 11+ 分区存储), 用一次真实写入探测
+const canWriteDir = async(dir: string) => {
+  const probe = dir + '/.alx_write_test'
+  try {
+    await writeFile(probe, 'ok')
+    await unlink(probe).catch(() => {})
+    return true
+  } catch {
+    return false
+  }
+}
+
+const getDefaultDownloadDir = async() => {
+  try {
+    let granted = await checkStoragePermissions()
+    if (!granted) granted = !!(await requestStoragePermission())
+    if (!granted) return ''
+    await ensureDir(DEFAULT_DOWNLOAD_DIR)
+    if (await canWriteDir(DEFAULT_DOWNLOAD_DIR)) return DEFAULT_DOWNLOAD_DIR
+  } catch (err) {
+    log.warn('[ALX] public download dir unavailable', err)
+  }
+  return ''
+}
+
+let fallbackNoticeShown = false
+
 const getTargetPath = async(fileName: string) => {
   const savePath = settingState.setting['download.savePath']
   if (savePath) return savePath + '/' + fileName
+  const publicDir = await getDefaultDownloadDir()
+  if (publicDir) return publicDir + '/' + fileName
+  if (!fallbackNoticeShown) {
+    fallbackNoticeShown = true
+    log.warn('[ALX] fallback to private download dir')
+    toast('系统下载目录不可写，已改用应用内目录')
+  }
   const dir = privateStorageDirectoryPath + '/ALXMusic/Download'
   await ensureDir(dir)
   return dir + '/' + fileName
@@ -217,7 +254,9 @@ const runTask = async(task: LX.Download.ListItem) => {
       await cp(tempFile, target)
       await removeFile(tempFile)
     } else {
-      await RNFS.moveFile(tempFile, target)
+      // 公共下载目录和 cache 是不同文件系统, moveFile(rename) 会失败, 用复制
+      await cp(tempFile, target)
+      await removeFile(tempFile)
     }
     tempFile = ''
 

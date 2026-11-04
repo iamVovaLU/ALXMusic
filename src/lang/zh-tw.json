@@ -529,7 +529,7 @@
   "alx_download_waiting": "等待中",
   "alx_download_summary": "已完成 {done} / 共 {total}",
   "alx_download_dir": "目錄：",
-  "alx_download_default_dir": "應用內下載目錄",
+  "alx_download_default_dir": "系統下載目錄 (Download/ALXMusic)",
   "alx_download_empty": "還沒有下載任務\n在歌曲選單裡點「下載」試試",
   "alx_download_start_all": "全部開始",
   "alx_download_start_all_tip": "已開始下載佇列",
