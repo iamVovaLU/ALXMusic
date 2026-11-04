@@ -29,23 +29,38 @@ export default () => {
 
   let lastPos = 0
   let lastPosAt = 0
+  let seekAt = 0
+  let lastMax = 0
   const getCurrentTime = () => {
     let id = playerState.musicInfo.id
     void getPosition().then(position => {
       if (!position || id != playerState.musicInfo.id) return
-      // 诊断: 位置跳变异常时留个记录, 方便定位「1 秒走 3 秒」的问题
-      if (playerState.isPlay) {
-        const now = Date.now()
-        const elapsed = (now - lastPosAt) / 1000
-        if (lastPosAt && elapsed > 0.2) {
-          const delta = position - lastPos
-          if (delta > 3 && delta > elapsed * 2) {
-            log.warn('[ALX] progress jump', { delta, elapsed, position, max: playerState.progress.maxPlayTime })
-          }
-        }
+      const now = Date.now()
+      // 切歌 / 拖动进度条后重新起算, 不做限速
+      if (playerState.progress.maxPlayTime != lastMax) {
+        lastMax = playerState.progress.maxPlayTime
         lastPos = position
         lastPosAt = now
+        setNowPlayTime(position)
+        return
       }
+      if (playerState.isPlay && lastPosAt && now - seekAt > 2000) {
+        const elapsed = (now - lastPosAt) / 1000
+        if (elapsed > 0.2) {
+          const rate = settingState.setting['player.playbackRate'] || 1
+          // 正常情况下最多走 elapsed * rate 秒, 留 50% + 0.8s 余量
+          const allowed = elapsed * Math.max(rate, 0.1) * 1.5 + 0.8
+          const delta = position - lastPos
+          // 只纠正「跑太快」, 往回跳可能是循环/切段, 放行
+          if (delta > allowed) {
+            const corrected = Math.max(0, lastPos + elapsed * rate)
+            log.warn('[ALX] progress jump', { delta, elapsed, position, corrected, max: playerState.progress.maxPlayTime })
+            position = corrected
+          }
+        }
+      }
+      lastPos = position
+      lastPosAt = now
       setNowPlayTime(position)
       if (!playerState.isPlay) return
 
@@ -88,6 +103,9 @@ export default () => {
 
   const setProgress = (time: number, maxTime?: number) => {
     if (!playerState.musicInfo.id) return
+    seekAt = Date.now()
+    lastPos = time
+    lastPosAt = Date.now()
     // console.log('setProgress', time, maxTime)
     setNowPlayTime(time)
     void setCurrentTime(time)
