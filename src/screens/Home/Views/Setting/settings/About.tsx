@@ -38,7 +38,7 @@ export default memo(() => {
     showPactModal()
   }
   const openPartPage = () => {
-    void openUrl('https://github.com/lyswhut/lx-music-mobile/blob/master/LICENSE')
+    void openUrl('https://github.com/iamVovaLU/ALXMusic/blob/master/LICENSE')
   }
 
   // const goToQQGroup = () => {
@@ -67,7 +67,7 @@ export default memo(() => {
         <TouchableOpacity onPress={openHomePage}>
           <Text style={textLinkStyle}>https://github.com/iamVovaLU/ALXMusic</Text>
         </TouchableOpacity>
-        <Text style={styles.text}>基于 LX Music 移动版（lyswhut）的个人定制版，遵循 Apache-2.0。</Text>
+        <Text style={styles.text}>本项目是 LX Music 移动版（lyswhut）的优化分支：只修改原版不合理、影响体验的部分，并补齐缺失的功能。遵循 Apache-2.0。</Text>
       </View>
       <View style={styles.part}>
         <Text style={styles.text}>最新版下载地址：</Text>
