@@ -1,7 +1,8 @@
 import { memo, useMemo } from 'react'
+import { View } from 'react-native'
 
 import InputItem, { type InputItemProps } from '../../components/InputItem'
-import { toast } from '@/utils/tools'
+import { createStyle, toast } from '@/utils/tools'
 import { useSettingValue } from '@/store/setting/hook'
 import { useI18n } from '@/lang'
 import { updateSetting } from '@/core/common'
@@ -32,11 +33,20 @@ export default memo(() => {
   }
 
   return (
-    <InputItem
-      value={size}
-      label={t('setting_play_cache_size')}
-      onChanged={setSize}
-      keyboardType="number-pad"
-      placeholder={t('setting_play_cache_size_no_cache')} />
+    // SubTitle 已经带了 paddingLeft, InputItem 自带同样的一份, 这里抵消掉, 和其他行左对齐
+    <View style={styles.wrap}>
+      <InputItem
+        value={size}
+        label={t('setting_play_cache_size')}
+        onChanged={setSize}
+        keyboardType="number-pad"
+        placeholder={t('setting_play_cache_size_no_cache')} />
+    </View>
   )
+})
+
+const styles = createStyle({
+  wrap: {
+    marginLeft: -25,
+  },
 })
