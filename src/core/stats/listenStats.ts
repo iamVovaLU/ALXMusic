@@ -2,6 +2,7 @@
 import { getData, saveData } from '@/plugins/storage'
 import playerState from '@/store/player/state'
 import { log } from '@/utils/log'
+import BackgroundTimer from 'react-native-background-timer'
 
 const STORAGE_KEY = '@alx_l…s_v2'
 const TICK_MS = 10000 // 每 10 秒落一次账, 被杀进程最多丢 10 秒
@@ -27,7 +28,7 @@ export interface RankItem {
 const stats = new Map<string, SongStat>()
 let initPromise: Promise<void> | null = null
 let saveTimer: ReturnType<typeof setTimeout> | null = null
-let tickTimer: ReturnType<typeof setInterval> | null = null
+let tickTimer: number | null = null
 let lastTickAt = 0
 // 计时开始时记下的那首歌 (切歌时 playerState 已经变成新歌了, 不能现取)
 let active: { id: string, name: string, singer: string, album: string } | null = null
@@ -55,11 +56,22 @@ const snapshot = () => {
 
 // 把「从现在到上次记账」的时间加给**开始计时时那首歌** (active), 而不是当前正在播的
 const flush = () => {
-  if (!lastTickAt) return
   const now = Date.now()
+  // 没在播放: 清掉基准, 恢复播放时重新起算(暂停期间不记账)
+  if (!playerState.isPlay) {
+    lastTickAt = 0
+    return
+  }
+  if (!active) active = snapshot()
+  if (!active) return
+  // 自愈: 单曲循环时 play 事件可能被 URL 获取流程吞掉, 这里以"正在播放"为准重新起算
+  if (!lastTickAt) {
+    lastTickAt = now
+    return
+  }
   let delta = Math.round((now - lastTickAt) / 1000)
   lastTickAt = now
-  if (delta <= 0 || !active) return
+  if (delta <= 0) return
   if (delta > MAX_TICK_SECONDS) delta = MAX_TICK_SECONDS
   const existed = stats.get(active.id)
   if (existed) {
@@ -81,15 +93,10 @@ const flush = () => {
   scheduleSave()
 }
 
+// 用 BackgroundTimer: 普通 setInterval 在后台/息屏时会被系统挂起, 导致听歌时长停记
 const startTick = () => {
   if (tickTimer) return
-  tickTimer = setInterval(flush, TICK_MS)
-}
-
-const stopTick = () => {
-  if (!tickTimer) return
-  clearInterval(tickTimer)
-  tickTimer = null
+  tickTimer = BackgroundTimer.setInterval(flush, TICK_MS)
 }
 
 export const initListenStats = async() => {
@@ -106,17 +113,19 @@ export const initListenStats = async() => {
       log.warn('[ALX] load listen stats failed', err)
     }
 
+    // 计时器常驻, 由 flush 自己判断是否在播放 (被吞掉的 play 事件也能自愈)
+    startTick()
+
     // 播放/暂停/切歌 时结算
     global.app_event.on('play', () => {
       // 恢复播放时 active 还是同一首歌; 首次播放则取当前歌曲
       active = active ?? snapshot()
-      lastTickAt = Date.now()
+      if (!lastTickAt) lastTickAt = Date.now()
       startTick()
     })
     global.app_event.on('pause', () => {
       flush()
       lastTickAt = 0
-      stopTick()
     })
     global.app_event.on('musicToggled', () => {
       // 先把时间结算给上一首歌 (active), 再切到新歌

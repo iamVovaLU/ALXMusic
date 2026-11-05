@@ -5,6 +5,23 @@
 
 ## ALX 定制版
 
+### [1.9.22-alx] - 2026-11-05
+
+版本号 `1.9.22-alx`, versionCode **10940**。
+
+#### 修复
+
+- **单曲循环听久了, 后面不再累计听歌时长**
+  - 原因 1: 循环重播走的是 `playNext` -> `musicToggled`, 那一刻 `playerState.isPlay` 还是 false,
+    `lastTickAt` 被置 0; 紧接着的 `play` 事件在 `PlaybackState` 监听里被 `gettingUrlId` 提前 return 吞掉,
+    计时器停摆后再也没有事件把它拉起来 -> 之后整段循环都不记账
+  - 原因 2: 计时用的是普通 `setInterval`, 息屏 / 后台会被系统挂起
+  - 处理:
+    - 改用 `BackgroundTimer`(应用里其他地方本来就用它)
+    - 计时器常驻, `flush` 自己判断 `playerState.isPlay`, 发现 `lastTickAt` 为 0 时自动重新起算(自愈),
+      不再依赖 `play` 事件一定送达
+    - 暂停时清基准不记账, 恢复时从下一次 tick 开始
+
 ### [1.9.21-alx] - 2026-11-05
 
 版本号 `1.9.21-alx`, versionCode **10939**。
