@@ -34,10 +34,11 @@ export default () => {
   // 但连续两次同向偏离锚点超过阈值, 说明是真的跳转(拖动/通知栏/歌词跳转), 重新锚定.
   let anchorPos = 0
   let anchorAt = 0
-  let devDir = 0
   let devCount = 0
-  let devPrev = 0
   let needAnchor = true
+  let lastRaw = 0
+  let lastRawAt = 0
+  let ignoreLogged = 0
   const getCurrentTime = () => {
     let id = playerState.musicInfo.id
     void getPosition().then(position => {
@@ -51,8 +52,9 @@ export default () => {
         lastMax = max
         anchorPos = position
         anchorAt = now
-        devDir = 0
         devCount = 0
+        lastRaw = position
+        lastRawAt = now
         setNowPlayTime(position)
         return
       }
@@ -60,9 +62,13 @@ export default () => {
       if (playerState.isPlay && now - seekAt > 1500) {
         const estimate = anchorPos + (now - anchorAt) / 1000 * rate
         const deviation = position - estimate
-        const jump = (reanchor: string) => {
+        // 原始位置自身的推进速度, 只用于日志判断是"正常跳转"还是"位置跑飞"
+        const rawRate = lastRawAt ? (position - lastRaw) / ((now - lastRawAt) / 1000) : rate
+        lastRaw = position
+        lastRawAt = now
+        const jump = (why: string) => {
           log.warn('[ALX] progress re-anchor', {
-            why: reanchor,
+            why,
             pos: Number(position.toFixed(2)),
             estimate: Number(estimate.toFixed(2)),
             deviation: Number(deviation.toFixed(2)),
@@ -71,24 +77,30 @@ export default () => {
           })
           anchorPos = position
           anchorAt = now
-          devDir = 0
           devCount = 0
         }
         if (deviation < -1) {
-          // 位置比推算值靠后: 缓冲/卡顿. 连续两次就认位置为准, 别让条子空跑
+          // 位置比推算值靠后: 循环重播/缓冲卡顿/息屏后恢复. 连续两次就以位置为准
           devCount++
-          devDir = -1
-          if (devCount >= 2) jump('stall')
+          if (devCount >= 2) jump('rewind')
         } else if (deviation > 1.2) {
-          // 位置比推算值靠前: 要么是真跳转(拖动/通知栏), 要么是底层位置跑飞.
-          // 真跳转的偏移量会保持稳定, 跑飞的偏移量会一路增长 -- 用这个区分.
-          const stable = devDir == 1 && Math.abs(deviation - devPrev) < 0.5
-          devCount = stable ? devCount + 1 : 1
-          devDir = 1
-          devPrev = deviation
-          if (devCount >= 3) jump('seek')
+          // 位置比推算值靠前: 只有 3 秒内真的走过 seek(拖动/通知栏/歌词跳转) 才认,
+          // 否则一律当底层 getPosition() 跑飞忽略 -- 偏移量"稳定"不能作为判据,
+          // 因为跑飞一次之后底层会从新位置继续正常走, 看起来和真跳转一模一样
+          devCount++
+          if (devCount >= 2 && now - seekAt < 3000) jump('seek')
+          else if (ignoreLogged < 3) {
+            ignoreLogged++
+            log.warn('[ALX] ignore position jump', {
+              pos: Number(position.toFixed(2)),
+              estimate: Number(estimate.toFixed(2)),
+              deviation: Number(deviation.toFixed(2)),
+              rawRate: Number(rawRate.toFixed(2)),
+              rate,
+              max,
+            })
+          }
         } else {
-          devDir = 0
           devCount = 0
         }
       } else if (!playerState.isPlay) {
@@ -146,7 +158,6 @@ export default () => {
     // 以跳转目标重新起锚, 后续按墙上时间推算
     anchorPos = time
     anchorAt = seekAt
-    devDir = 0
     devCount = 0
     // console.log('setProgress', time, maxTime)
     setNowPlayTime(time)
@@ -160,6 +171,7 @@ export default () => {
 
   const handlePlay = () => {
     needAnchor = true
+    ignoreLogged = 0
     void getMaxTime()
     // prevProgressStatus = 'normal'
     // handleSetTaskBarState(playProgress.progress, prevProgressStatus)
