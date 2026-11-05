@@ -1,8 +1,7 @@
 import { memo, useMemo } from 'react'
-import { View } from 'react-native'
 
 import InputItem, { type InputItemProps } from '../../components/InputItem'
-import { createStyle, toast } from '@/utils/tools'
+import { toast } from '@/utils/tools'
 import { useSettingValue } from '@/store/setting/hook'
 import { useI18n } from '@/lang'
 import { updateSetting } from '@/core/common'
@@ -33,20 +32,11 @@ export default memo(() => {
   }
 
   return (
-    <View style={styles.content} >
-      <InputItem
-        value={size}
-        label={t('setting_play_cache_size')}
-        onChanged={setSize}
-        keyboardType="number-pad"
-        placeholder={t('setting_play_cache_size_no_cache')} />
-    </View>
+    <InputItem
+      value={size}
+      label={t('setting_play_cache_size')}
+      onChanged={setSize}
+      keyboardType="number-pad"
+      placeholder={t('setting_play_cache_size_no_cache')} />
   )
 })
-
-const styles = createStyle({
-  content: {
-    marginTop: 10,
-  },
-})
-

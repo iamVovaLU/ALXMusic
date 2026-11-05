@@ -1,7 +1,7 @@
 {
   "name": "ALXMusic",
-  "version": "1.9.19-alx",
-  "versionCode": 10937,
+  "version": "1.9.20-alx",
+  "versionCode": 10938,
   "private": true,
   "scripts": {
     "dev": "react-native run-android --active-arch-only",

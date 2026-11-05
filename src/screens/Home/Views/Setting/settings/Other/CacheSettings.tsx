@@ -2,6 +2,7 @@ import { memo, useEffect, useState } from 'react'
 import { View } from 'react-native'
 
 import SubTitle from '../../components/SubTitle'
+import MaxCache from './MaxCache'
 import Button from '../../components/Button'
 import Text from '@/components/common/Text'
 import { useTheme } from '@/store/theme/hook'
@@ -149,6 +150,7 @@ export default memo(() => {
         </Button>
       </View>
 
+      <MaxCache />
       <View style={styles.row}>
         <Text size={12} color={theme['c-400']}>
           播放缓存: {playerSize < 0 ? '计算中…' : sizeFormate(Math.max(0, playerSize))}

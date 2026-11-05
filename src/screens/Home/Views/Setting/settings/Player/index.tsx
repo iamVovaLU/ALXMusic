@@ -12,7 +12,6 @@ import IsShowNotificationImage from './IsShowNotificationImage'
 import IsShowLyricTranslation from './IsShowLyricTranslation'
 import IsShowLyricRoma from './IsShowLyricRoma'
 import IsS2T from './IsS2T'
-import MaxCache from './MaxCache'
 import { useI18n } from '@/lang'
 
 
@@ -31,7 +30,6 @@ export default memo(() => {
       <IsShowLyricTranslation />
       <IsShowLyricRoma />
       <IsS2T />
-      <MaxCache />
       <PlayHighQuality />
     </Section>
   )
