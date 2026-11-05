@@ -304,7 +304,6 @@ export const init = async() => {
         statusText: t.status == 'run' ? '' : t.statusText,
       }))
     }
-    log.info('[ALX] download manager ready, tasks:', tasks.length)
     emit()
   })()
   return initPromise

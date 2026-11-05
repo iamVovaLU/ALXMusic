@@ -81,7 +81,6 @@ const ensure = (apiSource: string, source: string): SourceStat => {
 export const pushEvent = (text: string) => {
   events.unshift({ at: Date.now(), text })
   if (events.length > MAX_EVENTS) events.length = MAX_EVENTS
-  log.info('[ALX] source race:', text)
 }
 
 export const getEvents = () => events.slice()

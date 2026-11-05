@@ -47,7 +47,6 @@ export const getMusicUrl = async({
     if (downloadedPath) {
       try {
         if (await existsFile(downloadedPath)) {
-          log.info('[ALX] play downloaded file', musicInfo.name, downloadedPath)
           return downloadedPath
         }
       } catch (err) {
@@ -79,7 +78,6 @@ export const getMusicUrlRacing = async({
   if (downloadedPath) {
     try {
       if (await existsFile(downloadedPath)) {
-        log.info('[ALX] play downloaded file', info.name, downloadedPath)
         return downloadedPath
       }
     } catch (err) {
