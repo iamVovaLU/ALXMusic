@@ -67,21 +67,41 @@ export const getMusicUrl = async({
 
 /**
  * ALX: 缓存优先 -- 这首歌之前取过的链接如果已经整段缓存下来, 直接用它回放, 完全不联网.
- * 关键点: 全源竞速每次都会重新取链接, 不同源/不同 CDN 的 URL 不一样, 缓存永远打不中;
- * 所以要优先复用"当初被缓存的那条 URL", 断网时才有歌可听.
+ * 关键点:
+ * 1. 全源竞速每次都会重新取链接, 不同源/CDN 的 URL 不一样, ExoPlayer 的 SimpleCache 按 URL 做 key,
+ *    缓存因此永远打不中; 所以必须复用"当初被缓存的那条 URL".
+ * 2. 竞速胜出的可能是**另一个源**的歌(不同 id), 存 URL 时可能落在那个 id 下, 所以两个 id 都要查.
+ * 3. 胜出的音质也不一定等于设置里的音质, 所以要把常见音质和这首歌支持的音质都扫一遍.
  * @param requireCached true 时只接受确实在缓存里的 URL(离线可播), false 时只要存过就返回(兜底)
  */
+const ALL_QUALITYS: LX.Quality[] = ['flac24bit', 'flac', '320k', '192k', '128k']
 const getCachedMusicUrl = async(musicInfo: LX.Music.MusicInfoOnline, requireCached: boolean): Promise<string> => {
-  const qualitys = new Set<LX.Quality>()
+  const ids = new Set<string>([String(musicInfo.id)])
+  const toggle = musicInfo.meta?.toggleMusicInfo
+  if (toggle?.id) ids.add(String(toggle.id))
+  const qualitys = new Set<LX.Quality>(ALL_QUALITYS)
   qualitys.add(getPlayQuality(settingState.setting['player.playQuality'], musicInfo))
-  const all = musicInfo.meta?._qualitys
-  if (all) for (const q of Object.keys(all)) qualitys.add(q as LX.Quality)
-  for (const q of qualitys) {
-    const url = await getStoredMusicUrl(musicInfo, q).catch(() => '')
-    if (!url) continue
-    if (!requireCached) return url
-    if (await isCached(url).catch(() => false)) return url
+  const supported = musicInfo.meta?._qualitys
+  if (supported) for (const q of Object.keys(supported)) qualitys.add(q as LX.Quality)
+
+  let foundNotCached = 0
+  for (const id of ids) {
+    for (const q of qualitys) {
+      const url = await getStoredMusicUrl({ id } as LX.Music.MusicInfo, q).catch(() => '')
+      if (!url) continue
+      if (!requireCached) return url
+      if (await isCached(url).catch(() => false)) return url
+      foundNotCached++
+    }
   }
+  log.info('[ALX] cache miss', {
+    name: musicInfo.name,
+    ids: [...ids].join('/'),
+    qualitys: [...qualitys].join(','),
+    checked: ids.size * qualitys.size,
+    foundNotCached,
+    requireCached,
+  })
   return ''
 }
 
@@ -122,6 +142,10 @@ export const getMusicUrlRacing = async({
       onToggleSource,
     })
     void saveMusicUrl(result.musicInfo, result.quality, result.url)
+    // 胜出的可能是另一个源的歌(不同 id), 原歌的 id 也存一份, 下次才能用它命中缓存
+    if (String(result.musicInfo.id) != String((info as LX.Music.MusicInfoOnline).id)) {
+      void saveMusicUrl(info as LX.Music.MusicInfoOnline, result.quality, result.url)
+    }
     return result.url
   } catch (err) {
     // 断网兜底: 只要存过链接就试着播(缓存里可能还有可用的片段)

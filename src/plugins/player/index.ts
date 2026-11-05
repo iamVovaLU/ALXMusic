@@ -43,6 +43,7 @@ const initial = async({ volume, playRate, cacheSize, isHandleAudioFocus, isEnabl
   const cachePath = settingState.setting['player.cacheLocation'] == 'external' ? await getExternalCachePath() : ''
   try {
     await (TrackPlayer as any).setCachePath(cachePath)
+    log.info('[ALX] player cache:', cachePath || '(internal)', 'max', cacheSize, 'MiB')
   } catch (err) {
     log.error('[ALX] set player cache path failed', err)
   }
