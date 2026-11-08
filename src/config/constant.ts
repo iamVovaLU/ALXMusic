@@ -77,6 +77,8 @@ export const storageDataPrefix = {
 
   dislikeList: '@dislike_list',
 
+  listenStats: '@listen_stats',
+
   userApi: '@user_api__',
 } as const
 

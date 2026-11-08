@@ -24,6 +24,7 @@ import { getMusicUrlFromOtherSources } from '@/core/music/utils'
 import { saveMusicUrl } from '@/utils/data'
 import { requestMsg } from '@/utils/message'
 import { getRandom } from '@/utils/common'
+import { pickSmartRandomIndex } from './listenStats'
 import { filterList } from './utils'
 import BackgroundTimer from 'react-native-background-timer'
 import { checkIgnoringBatteryOptimization, checkNotificationPermission, debounceBackgroundTimer } from '@/utils/tools'
@@ -403,7 +404,7 @@ export const getNextPlayMusicInfo = async(): Promise<LX.Player.PlayMusicInfo | n
       nextIndex = playerIndex === filteredList.length - 1 ? 0 : playerIndex + 1
       break
     case 'random':
-      nextIndex = getRandom(0, filteredList.length)
+      nextIndex = pickSmartRandomIndex(filteredList)
       break
     case 'list':
       nextIndex = playerIndex === filteredList.length - 1 ? -1 : playerIndex + 1
@@ -513,7 +514,7 @@ export const playNext = async(isAutoToggle = false): Promise<void> => {
       nextIndex = playerIndex === filteredList.length - 1 ? 0 : playerIndex + 1
       break
     case 'random':
-      nextIndex = getRandom(0, filteredList.length)
+      nextIndex = pickSmartRandomIndex(filteredList)
       break
     case 'list':
       nextIndex = playerIndex === filteredList.length - 1 ? -1 : playerIndex + 1
@@ -597,7 +598,7 @@ export const playPrev = async(isAutoToggle = false): Promise<void> => {
     }
     switch (togglePlayMethod) {
       case 'random':
-        nextIndex = getRandom(0, filteredList.length)
+        nextIndex = pickSmartRandomIndex(filteredList)
         break
       case 'listLoop':
       case 'list':

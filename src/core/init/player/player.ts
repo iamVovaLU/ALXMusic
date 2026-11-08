@@ -1,4 +1,5 @@
 import { addPlayedList, clearPlayedList } from '@/core/player/playedList'
+import { recordListen } from '@/core/player/listenStats'
 import { pause, playNext } from '@/core/player/player'
 import { setStatusText, setIsPlay } from '@/core/player/playStatus'
 // import { resetPlayerMusicInfo } from '@/core/player/playInfo'
@@ -11,6 +12,8 @@ import settingState from '@/store/setting/state'
 export default async(setting: LX.AppSetting) => {
   const setPlayStatus = () => {
     setIsPlay(true)
+    // ALX: 记录播放统计, 给智能随机算权重用
+    recordListen(playerState.playMusicInfo.musicInfo)
   }
   const setPauseStatus = () => {
     setIsPlay(false)
