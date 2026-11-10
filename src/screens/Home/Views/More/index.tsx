@@ -15,13 +15,13 @@ import { version } from '../../../../../package.json'
 
 const TABS = [
   { id: 'listened', name: '听榜' },
-  { id: 'daily', name: '每日' },
   { id: 'log', name: '实时日志' },
   { id: 'health', name: '音源健康' },
   { id: 'status', name: '运行状态' },
 ] as const
 
 type TabId = typeof TABS[number]['id']
+type ListenMode = 'song' | 'singer' | 'album' | 'day'
 
 const LogTab = memo(() => {
   const theme = useTheme()
@@ -81,12 +81,13 @@ const LogTab = memo(() => {
 
 const ListenTab = memo(() => {
   const theme = useTheme()
-  const [mode, setMode] = useState<'song' | 'singer' | 'album'>('song')
+  const [mode, setMode] = useState<ListenMode>('song')
   const [rows, setRows] = useState<RankItem[]>([])
   const [summary, setSummary] = useState({ songs: 0, seconds: 0 })
 
-  const load = (m: 'song' | 'singer' | 'album' = mode) => {
+  const load = (m: ListenMode = mode) => {
     setSummary(getListenSummary())
+    if (m == 'day') return
     setRows(m == 'song' ? getTopSongs(100) : m == 'singer' ? getTopSingers(100) : getTopAlbums(100))
   }
 
@@ -94,7 +95,7 @@ const ListenTab = memo(() => {
     void initListenStats().then(() => load())
   }, [])
 
-  const switchMode = (m: 'song' | 'singer' | 'album') => {
+  const switchMode = (m: ListenMode) => {
     setMode(m)
     load(m)
   }
@@ -112,7 +113,7 @@ const ListenTab = memo(() => {
     })
   }
 
-  const modeBtn = (id: 'song' | 'singer' | 'album', label: string) => (
+  const modeBtn = (id: ListenMode, label: string) => (
     <Button onPress={() => { switchMode(id) }}>
       <Text size={12} color={mode == id ? theme['c-primary'] : theme['c-350']}>{label}</Text>
     </Button>
@@ -127,28 +128,33 @@ const ListenTab = memo(() => {
         {modeBtn('song', '歌曲')}
         {modeBtn('singer', '歌手')}
         {modeBtn('album', '专辑')}
+        {modeBtn('day', '每日')}
         <Button onPress={() => { load() }}><Text size={12} color={theme['c-350']}>刷新</Text></Button>
         <Button onPress={handleClear}><Text size={12} color={theme['c-350']}>清空</Text></Button>
       </View>
-      <ScrollView style={styles.flex}>
-        {rows.length
-          ? rows.map((row, index) => (
-            <View key={row.key} style={styles.rankRow}>
-              <Text size={12} color={theme['c-350']} style={styles.rankNo}>{index + 1}</Text>
-              <View style={styles.rankMain}>
-                <Text size={13} color={theme['c-100']} numberOfLines={1}>{row.name}</Text>
-                {row.sub ? <Text size={10} color={theme['c-400']} numberOfLines={1}>{row.sub}{mode != 'song' ? ` · ${row.songs} 首` : ''}</Text> : null}
-              </View>
-              <Text size={12} color={theme['c-primary']}>{formatDuration(row.seconds)}</Text>
-            </View>
-          ))
-          : <View style={styles.btnRow}><Text size={12} color={theme['c-400']}>还没有记录，去听几首歌吧</Text></View>}
-      </ScrollView>
+      {mode == 'day'
+        ? <DailyView />
+        : (
+          <ScrollView style={styles.flex}>
+            {rows.length
+              ? rows.map((row, index) => (
+                <View key={row.key} style={styles.rankRow}>
+                  <Text size={12} color={theme['c-350']} style={styles.rankNo}>{index + 1}</Text>
+                  <View style={styles.rankMain}>
+                    <Text size={13} color={theme['c-100']} numberOfLines={1}>{row.name}</Text>
+                    {row.sub ? <Text size={10} color={theme['c-400']} numberOfLines={1}>{row.sub}{mode != 'song' ? ` · ${row.songs} 首` : ''}</Text> : null}
+                  </View>
+                  <Text size={12} color={theme['c-primary']}>{formatDuration(row.seconds)}</Text>
+                </View>
+              ))
+              : <View style={styles.btnRow}><Text size={12} color={theme['c-400']}>还没有记录，去听几首歌吧</Text></View>}
+          </ScrollView>
+        )}
     </View>
   )
 })
 
-const DailyTab = memo(() => {
+const DailyView = memo(() => {
   const theme = useTheme()
   const [range, setRange] = useState<7 | 30>(7)
   const [series, setSeries] = useState<DayPoint[]>([])
@@ -280,7 +286,6 @@ export default memo(() => {
       </View>
       <View style={styles.content}>
         {tab === 'listened' ? <ListenTab /> : null}
-        {tab === 'daily' ? <DailyTab /> : null}
         {tab === 'log' ? <LogTab /> : null}
         {tab === 'health' ? <ScrollView style={styles.flex}><SourceHealth /></ScrollView> : null}
         {tab === 'status' ? <StatusTab /> : null}
