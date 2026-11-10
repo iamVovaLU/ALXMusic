@@ -10,12 +10,14 @@ import Text from '@/components/common/Text'
 import SubTitle from '../../components/SubTitle'
 import Button from '../../components/Button'
 import { log } from '@/utils/log'
+import { applyConcurrency } from '@/core/download'
 
 const DownloadSettings = memo(() => {
   const t = useI18n()
   const theme = useTheme()
   const savePath = useSettingValue('download.savePath')
   const fileNameType = useSettingValue('download.fileName')
+  const maxConcurrent = useSettingValue('download.maxConcurrent')
   const [busy, setBusy] = useState(false)
 
   const handleSelectDir = () => {
@@ -40,6 +42,7 @@ const DownloadSettings = memo(() => {
   }
 
   const fileNameTypes: Array<LX.AppSetting['download.fileName']> = ['歌名 - 歌手', '歌手 - 歌名', '歌名']
+  const concurrencyOptions = [1, 2, 3, 4]
 
   return (
     <SubTitle title={t('alx_setting_download_title')}>
@@ -61,6 +64,22 @@ const DownloadSettings = memo(() => {
             <Text size={12} color={fileNameType == type ? theme['c-primary'] : theme['c-350']}>{type}</Text>
           </Button>
         ))}
+      </View>
+      <View style={styles.row}>
+        <Text size={13} color={theme['c-400']}>{t('alx_setting_download_concurrent')}</Text>
+      </View>
+      <View style={styles.btnRow}>
+        {concurrencyOptions.map(num => (
+          <Button key={num} onPress={() => {
+            updateSetting({ 'download.maxConcurrent': num })
+            applyConcurrency()
+          }}>
+            <Text size={12} color={maxConcurrent == num ? theme['c-primary'] : theme['c-350']}>{num}</Text>
+          </Button>
+        ))}
+      </View>
+      <View style={styles.row}>
+        <Text size={12} color={theme['c-350']}>{t('alx_setting_download_concurrent_tip')}</Text>
       </View>
     </SubTitle>
   )

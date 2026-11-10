@@ -358,6 +358,11 @@ declare global {
       'download.savePath': string
 
       /**
+       * 同时下载的任务数量 (1-6)
+       */
+      'download.maxConcurrent': number
+
+      /**
        * 播放缓存位置（重启应用后生效）
        */
       'player.cacheLocation': 'internal' | 'external'

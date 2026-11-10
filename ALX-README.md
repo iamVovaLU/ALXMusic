@@ -5,6 +5,10 @@
 
 ## 更新日志
 
+### v1.9.27-alx
+- **同时下载数量可调**: 设置 → 其他 → 下载, 1~4 可选(默认 2), 改完立即生效
+- **下载失败自动重试**: 最多 3 次(等 2s / 5s / 15s), 每次重新取链接并清理半成品; 4xx 死链不重试
+
 ### v1.9.26-alx
 - **智能随机**: 随机模式改成按权重抽歌 —— 从没听过的权重最高, 很久没听的时间越久权重越高, 最近反复听的被压低; 本轮播过的仍然排除, 全部播完才重置
 - 新增本地听歌统计(`@listen_stats`, 播放次数 + 最后播放时间), 最多 20000 首, 超出丢最久没播的
@@ -77,7 +81,7 @@
    - 下载目录：设置 → 其他 → 下载 → 选择下载目录（SAF 选择任意文件夹，包括 TF 卡）
    - 默认目录：应用私有目录 `files/ALXMusic/Download`
    - 文件名模板沿用原设置（歌名 - 歌手 / 歌手 - 歌名 / 歌名）
-   - 并发 2 个任务；应用被杀掉后任务会保存，下次启动可在下载页继续
+   - 同时下载数量可在设置 → 其他 → 下载里调 (1~4, 默认 2)；失败自动重试 3 次；应用被杀掉后任务会保存，下次启动可在下载页继续
 
 3. **播放缓存目录可切换到外置存储（TF 卡）**
    - 设置 → 其他 → 播放缓存位置 → 内部存储 / 外置存储
@@ -101,7 +105,7 @@ cd android
 ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
 ```
 
-产物：`android/app/build/outputs/apk/release/ALXMusic-v1.9.19-alx-*.apk`
+产物：`android/app/build/outputs/apk/release/ALXMusic-v<ver>-alx-<abi>.apk`（不带 -PreactNativeArchitectures 时四个 ABI 全打，并额外产出 universal）
 
 签名：`android/keystore.properties` + `android/app/alx-release.keystore`（自签名，勿外传）。
 

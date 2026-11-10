@@ -11,7 +11,11 @@ import { toast, checkStoragePermissions, requestStoragePermission } from '@/util
 
 const STORAGE_KEY = '@alx_download_list_v1'
 const TEMP_DIR = temporaryDirectoryPath + '/alx_download'
-const CONCURRENCY = 2
+const DEFAULT_CONCURRENCY = 2
+const MAX_CONCURRENCY = 6
+// 失败自动重试次数 + 每次重试前的等待(毫秒)
+const MAX_RETRY = 3
+const RETRY_DELAYS = [2000, 5000, 15000]
 
 type Listener = (list: LX.Download.ListItem[]) => void
 
@@ -182,22 +186,40 @@ const updateTask = (task: LX.Download.ListItem, data: Partial<LX.Download.ListIt
   persist()
 }
 
+const getConcurrency = () => {
+  const value = settingState.setting['download.maxConcurrent']
+  if (typeof value != 'number' || Number.isNaN(value)) return DEFAULT_CONCURRENCY
+  return Math.min(Math.max(Math.floor(value), 1), MAX_CONCURRENCY)
+}
+
+const sleep = (ms: number) => new Promise<void>(resolve => { setTimeout(resolve, ms) })
+
 const startNext = () => {
-  if (running.size >= CONCURRENCY) return
+  const concurrency = getConcurrency()
+  if (running.size >= concurrency) return
   const waiting = tasks.filter(t => t.status == 'waiting')
   for (const task of waiting) {
-    if (running.size >= CONCURRENCY) break
+    if (running.size >= concurrency) break
     if (running.has(task.id)) continue
     void runTask(task)
   }
 }
 
-const runTask = async(task: LX.Download.ListItem) => {
-  if (running.has(task.id)) return
-  updateTask(task, { status: 'run', statusText: global.i18n.t('alx_download_getting_url') })
+// 单次下载尝试: 取链接 -> 下到临时文件 -> 复制到目标目录. 失败直接抛出, 由 runTask 决定是否重试
+const downloadOnce = async(task: LX.Download.ListItem, attempt: number) => {
+  updateTask(task, {
+    status: 'run',
+    statusText: global.i18n.t('alx_download_getting_url'),
+    downloaded: 0,
+    total: 0,
+    progress: 0,
+    speed: '',
+  })
 
   let tempFile = ''
   try {
+    // 重试时丢掉上一次可能已失效的链接, 重新取
+    if (attempt > 0) task.metadata.url = null
     const url = task.metadata.url ?? await getOnlineMusicUrl({
       musicInfo: task.metadata.musicInfo,
       isRefresh: true,
@@ -245,7 +267,12 @@ const runTask = async(task: LX.Download.ListItem) => {
     })
     running.set(task.id, { jobId })
     const result = await promise
-    if (result.statusCode && result.statusCode >= 400) throw new Error('HTTP ' + result.statusCode)
+    if (result.statusCode && result.statusCode >= 400) {
+      const err: any = new Error('HTTP ' + result.statusCode)
+      // 4xx 里除了超时/限流基本都是死链, 重试没意义
+      err.noRetry = result.statusCode < 500 && ![408, 425, 429].includes(result.statusCode)
+      throw err
+    }
     if (task.status != 'run') throw new Error('paused')
 
     const target = await getTargetPath(fileName)
@@ -269,6 +296,33 @@ const runTask = async(task: LX.Download.ListItem) => {
       metadata: { ...task.metadata, filePath: target },
     })
     log.info('[ALX] download completed', task.id, target)
+  } finally {
+    if (tempFile) void removeFile(tempFile)
+  }
+}
+
+const runTask = async(task: LX.Download.ListItem) => {
+  if (running.has(task.id)) return
+  // 占位: 重试等待期间也算法在跑, 防止 startNext 重复调度同一首
+  running.set(task.id, { jobId: 0 })
+  try {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await downloadOnce(task, attempt)
+        return
+      } catch (err: any) {
+        // 暂停/被移除时不算失败, 也不重试
+        if (task.status != 'run') return
+        if (err?.noRetry || attempt >= MAX_RETRY) throw err
+        log.warn('[ALX] download attempt failed, will retry', task.id, attempt + 1, err?.message ?? err)
+        updateTask(task, {
+          statusText: global.i18n.t('alx_download_retry', { num: attempt + 1, max: MAX_RETRY }),
+          speed: '',
+        })
+        await sleep(RETRY_DELAYS[attempt] ?? RETRY_DELAYS[RETRY_DELAYS.length - 1])
+        if (task.status != 'run') return
+      }
+    }
   } catch (err: any) {
     log.error('[ALX] download failed', task.id, err?.message ?? err)
     if (task.status != 'pause') {
@@ -278,7 +332,6 @@ const runTask = async(task: LX.Download.ListItem) => {
         speed: '',
       })
     }
-    if (tempFile) void removeFile(tempFile)
   } finally {
     running.delete(task.id)
     emit()
@@ -404,6 +457,11 @@ export const clearCompleted = async(deleteFile = false) => {
   tasks = tasks.filter(t => !t.isComplate)
   emit()
   persist()
+}
+
+// 设置里改了「同时下载数量」后立即生效(调大时立刻补位)
+export const applyConcurrency = () => {
+  startNext()
 }
 
 export const startAll = () => {

@@ -71,6 +71,7 @@ const defaultSetting: LX.AppSetting = {
 
   'download.fileName': '歌名 - 歌手',
   'download.savePath': '',
+  'download.maxConcurrent': 2,
 
   'player.cacheLocation': 'internal',
 
