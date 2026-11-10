@@ -10,11 +10,12 @@ import { getPlayerCacheDir } from '@/core/cache'
 import { privateStorageDirectoryPath } from '@/utils/fs'
 import settingState from '@/store/setting/state'
 import SourceHealth from '../Setting/settings/Other/SourceHealth'
-import { initListenStats, getTopSongs, getTopSingers, getTopAlbums, getListenSummary, clearListenStats, formatDuration, type RankItem } from '@/core/stats/listenStats'
+import { initListenStats, getTopSongs, getTopSingers, getTopAlbums, getListenSummary, clearListenStats, formatDuration, getDailySeries, getDayDetail, getDailySummary, formatDayShort, formatDayWeek, type RankItem, type DayPoint } from '@/core/stats/listenStats'
 import { version } from '../../../../../package.json'
 
 const TABS = [
   { id: 'listened', name: '听榜' },
+  { id: 'daily', name: '每日' },
   { id: 'log', name: '实时日志' },
   { id: 'health', name: '音源健康' },
   { id: 'status', name: '运行状态' },
@@ -147,6 +148,95 @@ const ListenTab = memo(() => {
   )
 })
 
+const DailyTab = memo(() => {
+  const theme = useTheme()
+  const [range, setRange] = useState<7 | 30>(7)
+  const [series, setSeries] = useState<DayPoint[]>([])
+  const [selected, setSelected] = useState('')
+  const [detail, setDetail] = useState<{ seconds: number, songs: RankItem[], hasDetail: boolean }>({ seconds: 0, songs: [], hasDetail: false })
+  const [summary, setSummary] = useState({ today: 0, week: 0, month: 0 })
+  const selectedRef = useRef('')
+
+  const load = (r: number, keepSelected = true) => {
+    void initListenStats().then(() => {
+      const list = getDailySeries(r)
+      setSeries(list)
+      setSummary(getDailySummary())
+      const target = keepSelected && selectedRef.current && list.some(item => item.date == selectedRef.current)
+        ? selectedRef.current
+        : (list[list.length - 1]?.date ?? '')
+      selectedRef.current = target
+      setSelected(target)
+      setDetail(getDayDetail(target))
+    })
+  }
+
+  useEffect(() => { load(range, false) }, [range])
+
+  const selectDay = (date: string) => {
+    selectedRef.current = date
+    setSelected(date)
+    setDetail(getDayDetail(date))
+  }
+
+  const max = Math.max(1, ...series.map(item => item.seconds))
+  const CHART_HEIGHT = 120
+  const rangeTotal = series.reduce((sum, item) => sum + item.seconds, 0)
+
+  return (
+    <View style={styles.flex}>
+      <View style={styles.btnRow}>
+        <Text size={12} color={theme['c-400']}>今天 {formatDuration(summary.today)} · 近 7 天 {formatDuration(summary.week)} · 近 30 天 {formatDuration(summary.month)}</Text>
+      </View>
+      <View style={styles.btnRow}>
+        <Button onPress={() => { setRange(7) }}><Text size={12} color={range == 7 ? theme['c-primary'] : theme['c-350']}>7 天</Text></Button>
+        <Button onPress={() => { setRange(30) }}><Text size={12} color={range == 30 ? theme['c-primary'] : theme['c-350']}>30 天</Text></Button>
+        <Button onPress={() => { load(range) }}><Text size={12} color={theme['c-350']}>刷新</Text></Button>
+        <Text size={11} color={theme['c-400']}>近 {range} 天共 {formatDuration(rangeTotal)}</Text>
+      </View>
+      {rangeTotal > 0
+        ? (
+          <View style={[styles.chart, { height: CHART_HEIGHT + 22 }]}>
+            {series.map((item, index) => {
+              const active = item.date == selected
+              const height = item.seconds > 0 ? Math.max(3, Math.round(item.seconds / max * CHART_HEIGHT)) : 1
+              const showLabel = range == 7 || index % 5 == 0 || index == series.length - 1
+              return (
+                <TouchableOpacity key={item.date} style={styles.barWrap} onPress={() => { selectDay(item.date) }}>
+                  <View style={[styles.bar, { height, backgroundColor: active ? theme['c-primary'] : theme['c-primary-light-100'] }]} />
+                  <Text size={9} color={active ? theme['c-primary'] : theme['c-400']}>{showLabel ? formatDayShort(item.date) : ' '}</Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+        )
+        : <View style={styles.btnRow}><Text size={12} color={theme['c-400']}>还没有每日记录，去听几首歌吧</Text></View>}
+      <View style={styles.dayHead}>
+        <Text size={13} color={theme['c-100']}>{selected ? `${formatDayShort(selected)} ${formatDayWeek(selected)}` : '选择一天'}</Text>
+        <Text size={11} color={theme['c-400']}>{formatDuration(detail.seconds)}{detail.songs.length ? ` · ${detail.songs.length} 首` : ''}</Text>
+      </View>
+      <ScrollView style={styles.flex}>
+        {detail.songs.length
+          ? detail.songs.map((row, index) => (
+            <View key={row.key} style={styles.rankRow}>
+              <Text size={12} color={theme['c-350']} style={styles.rankNo}>{index + 1}</Text>
+              <View style={styles.rankMain}>
+                <Text size={13} color={theme['c-100']} numberOfLines={1}>{row.name}</Text>
+                {row.sub ? <Text size={10} color={theme['c-400']} numberOfLines={1}>{row.sub}</Text> : null}
+              </View>
+              <Text size={12} color={theme['c-primary']}>{formatDuration(row.seconds)}</Text>
+            </View>
+          ))
+          : <View style={styles.btnRow}>
+            <Text size={12} color={theme['c-400']}>
+              {detail.seconds > 0 ? '这一天只留了总时长（超过 60 天的明细会被清理）' : '这一天没有听歌记录'}
+            </Text>
+          </View>}
+      </ScrollView>
+    </View>
+  )
+})
+
 const StatusTab = memo(() => {
   const theme = useTheme()
   const [cacheDir, setCacheDir] = useState('')
@@ -190,6 +280,7 @@ export default memo(() => {
       </View>
       <View style={styles.content}>
         {tab === 'listened' ? <ListenTab /> : null}
+        {tab === 'daily' ? <DailyTab /> : null}
         {tab === 'log' ? <LogTab /> : null}
         {tab === 'health' ? <ScrollView style={styles.flex}><SourceHealth /></ScrollView> : null}
         {tab === 'status' ? <StatusTab /> : null}
@@ -217,4 +308,8 @@ const styles = createStyle({
   rankNo: { width: 30 },
   rankMain: { flex: 1, paddingRight: 8 },
   statusValue: { marginTop: 2 },
+  chart: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 6, marginBottom: 8 },
+  barWrap: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%' },
+  bar: { width: '66%', borderRadius: 2, marginBottom: 2 },
+  dayHead: { marginTop: 4, marginBottom: 2 },
 })
