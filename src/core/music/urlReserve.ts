@@ -27,11 +27,13 @@ const pruneReserves = (key: string): ReserveEntry[] | null => {
   return alive.length ? alive : null
 }
 
-export const saveReserve = (musicInfo: LX.Music.MusicInfo | LX.Music.MusicInfoOnline, quality: LX.Quality, url: string) => {
-  const key = musicKey(musicInfo)
+// owner = 正在播的那首歌(用户点的那条), source = 这条链接来自哪个源.
+// 不同音源对同一首歌给的 id 不一样, 所以备胎必须挂在 owner 的 id 上才找得回来.
+export const saveReserve = (owner: LX.Music.MusicInfo | LX.Music.MusicInfoOnline, source: string, quality: LX.Quality, url: string) => {
+  const key = musicKey(owner)
   const list = pruneReserves(key) ?? []
-  if (list.some(e => e.source == musicInfo.source)) return
-  list.push({ source: musicInfo.source, quality, url, at: Date.now() })
+  if (list.some(e => e.source == source)) return
+  list.push({ source, quality, url, at: Date.now() })
   if (list.length > MAX_PER_MUSIC) list.splice(0, list.length - MAX_PER_MUSIC)
   reserves.set(key, list)
 }

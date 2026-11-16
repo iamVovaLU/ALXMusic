@@ -244,10 +244,12 @@ const currentApiSource = () => settingState.setting['common.apiSource'] || ''
  * 不做健康度过滤/排序/冷却, 也不限制并发数 -- 某些源对某首歌不行不代表对别的歌不行,
  * 所以能不能出结果交给这一轮的实际请求去判定.
  */
-export const raceOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSource }: {
+export const raceOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSource, owner }: {
   musicInfos: LX.Music.MusicInfoOnline[]
   quality?: LX.Quality
   onToggleSource: (musicInfo?: LX.Music.MusicInfoOnline) => void
+  // 正在播的那首歌, 备胎池/坏源表都按它的 id 记; 不传就用候选自己的 id
+  owner?: LX.Music.MusicInfo | LX.Music.MusicInfoOnline
 }): Promise<{ url: string, musicInfo: LX.Music.MusicInfoOnline, quality: LX.Quality, isFromCache: boolean }> => {
   await initSourceHealth()
   const apiSource = currentApiSource()
@@ -257,7 +259,7 @@ export const raceOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSour
     if (!assertApiSupport(mi.source)) continue
     if (seen.has(mi.source)) continue
     // 这首歌上已经播放失败过的源不再浪费一次请求
-    if (isBadSource(mi, mi.source)) continue
+    if (isBadSource(owner ?? mi, mi.source)) continue
     const q = quality ?? getPlayQuality(settingState.setting['player.playQuality'], mi)
     if (!mi.meta._qualitys[q]) continue
     seen.add(mi.source)
@@ -299,7 +301,7 @@ export const raceOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSour
         if (!ok) throw new Error('url probe failed')
         // 已经有人胜出: 这条也探活通过, 存进备胎池, 等播放器真的出事再拿出来
         if (settled) {
-          saveReserve(mi, type, url)
+          saveReserve(owner ?? mi, mi.source, type, url)
           return
         }
         const ms = Date.now() - t0
@@ -343,7 +345,7 @@ export const getMusicUrlFromAllSources = async({ musicInfo, quality, onToggleSou
     const attempt = (mi: LX.Music.MusicInfoOnline) => {
       if (settled || tried.has(mi.source)) return
       if (!assertApiSupport(mi.source)) return
-      if (isBadSource(mi, mi.source)) return
+      if (isBadSource(musicInfo, mi.source)) return
       const q = quality ?? getPlayQuality(settingState.setting['player.playQuality'], mi)
       if (!mi.meta._qualitys[q]) return
       tried.add(mi.source)
@@ -361,7 +363,7 @@ export const getMusicUrlFromAllSources = async({ musicInfo, quality, onToggleSou
         if (!ok) throw new Error('url probe failed')
         // 已经有人胜出: 这条也探活通过, 存进备胎池, 等播放器真的出事再拿出来
         if (settled) {
-          saveReserve(mi, type, url)
+          saveReserve(musicInfo, mi.source, type, url)
           return
         }
         const ms = Date.now() - t0
@@ -410,6 +412,7 @@ export const getMusicUrlFromOtherSources = async({ musicInfo, quality }: {
     musicInfos: list,
     quality,
     onToggleSource: () => {},
+    owner: musicInfo,
   })
   return { url: result.url, quality: result.quality, source: result.musicInfo.source }
 }
@@ -504,6 +507,7 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
           musicInfos: otherSource.filter(item => item.source != musicInfo.source),
           onToggleSource,
           quality,
+          owner: musicInfo,
         }).catch(() => {
           // 竞速全灭时退回原来的串行逻辑, 保证还有最后一条路
           return getOnlineOtherSourceMusicUrl({
