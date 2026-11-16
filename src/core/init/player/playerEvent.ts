@@ -1,12 +1,13 @@
 import { playNext, setMusicUrl, setMusicUrlFromOtherSource } from '@/core/player/player'
 import { setStatusText } from '@/core/player/playStatus'
-import { getPosition, isEmpty, setStop } from '@/plugins/player'
+import { getDuration, getPosition, isEmpty, setStop } from '@/plugins/player'
 import { isActive } from '@/utils/tools'
 import BackgroundTimer from 'react-native-background-timer'
 import playerState from '@/store/player/state'
 import { setNowPlayTime } from '@/core/player/progress'
 import { initSourceHealth, recordFail, pushEvent } from '@/core/music/sourceHealth'
-import { markBadSource } from '@/core/music/urlReserve'
+import { getServedSource, markBadSource } from '@/core/music/urlReserve'
+import { getMinMusicDuration, parseIntervalSeconds } from '@/core/music/duration'
 import settingState from '@/store/setting/state'
 
 
@@ -16,6 +17,9 @@ const MAX_SWITCH = 8
 export default () => {
   let retryNum = 0
   let prevTimeoutId: string | null = null
+  // 每次新的 URL 加载自增; 时长检查只对当次加载有效, 换源/切歌后旧结果作废
+  let loadSerial = 0
+  let durationCheckedSerial = -1
 
   let loadingTimeout: number | null = null
   let delayNextTimeout: number | null = null
@@ -65,6 +69,7 @@ export default () => {
 
   const handleLoadstart = () => {
     console.log('handleLoadstart', playerState.isPlay)
+    loadSerial++
     if (global.lx.isPlayedStop || !playerState.isPlay) return
     startLoadingTimeout()
     setStatusText(global.i18n.t('player__loading'))
@@ -78,9 +83,51 @@ export default () => {
   //   setStatusText('')
   // }
 
+  // 播放器真的开始出声后才拿得到时长: 播得动但只有 16~30 秒的, 多半是试听片段/会员提示音,
+  // 当换源失败处理, 继续换下一个源, 而不是当歌播下去.
+  const checkPlayDuration = async() => {
+    const serial = loadSerial
+    const musicInfo = playerState.playMusicInfo.musicInfo
+    if (!musicInfo) return
+    const info = 'progress' in musicInfo ? musicInfo.metadata.musicInfo : musicInfo
+    if (info.source == 'local') return
+    const min = getMinMusicDuration()
+    if (!(min > 0)) return
+    let duration = 0
+    for (let i = 0; i < 3; i++) {
+      try {
+        duration = await getDuration()
+      } catch {
+        duration = 0
+      }
+      if (duration > 0) break
+      await new Promise(resolve => setTimeout(resolve, 300))
+    }
+    // 检查期间又换源/切歌了, 这个结果作废
+    if (serial != loadSerial || durationCheckedSerial == serial) return
+    durationCheckedSerial = serial
+    // 有些格式拿不到时长, 宁可不判死刑
+    if (!(duration > 0)) return
+    // 原曲本身就短(比如 20 秒的间奏), 不按假音频处理
+    const expected = parseIntervalSeconds(info.interval)
+    if (expected > 0 && expected < min) {
+      pushEvent(`原曲时长 ${expected}s < ${min}s, 跳过时长检查`)
+      return
+    }
+    if (duration >= min) return
+    const served = getServedSource(info) ?? info.source
+    markBadSource(info, served)
+    void initSourceHealth().then(() => {
+      recordFail(settingState.setting['common.apiSource'] || '', served, 0, `short audio ${Math.round(duration)}s`)
+      pushEvent(`实际时长 ${Math.round(duration)}s < ${min}s → ${served} 判为无效音频, 换源`)
+    })
+    setMusicUrlFromOtherSource(musicInfo)
+  }
+
   const handlePlaying = () => {
     setStatusText('')
     clearLoadingTimeout()
+    void checkPlayDuration()
   }
 
   const handleEmpied = () => {
@@ -109,7 +156,7 @@ export default () => {
         // 然后一直换到下一个源(优先用竞速留下的备胎), 直到真的播出声为止,
         // 不要因为探测通过就报「音频加载出错」.
         const info = 'progress' in musicInfo ? musicInfo.metadata.musicInfo : musicInfo
-        const source = info.source
+        const source = getServedSource(info) ?? info.source
         if (source != 'local') {
           retryNum++
           // 播了几秒才出错更像网络抖动, 刷新同一个链接, 不判这个源死刑

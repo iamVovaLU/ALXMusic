@@ -14,6 +14,8 @@ export interface ReserveEntry {
 
 const reserves = new Map<string, ReserveEntry[]>()
 const badSources = new Map<string, Set<string>>()
+// 这首歌当前播的链接到底是哪个源给的(换源后 musicInfo.source 还是原歌曲的源, 不能直接用)
+const servedSources = new Map<string, string>()
 
 const musicKey = (musicInfo: LX.Music.MusicInfo | LX.Music.MusicInfoOnline) => String(musicInfo.id)
 
@@ -63,4 +65,12 @@ export const markBadSource = (musicInfo: LX.Music.MusicInfo | LX.Music.MusicInfo
 
 export const isBadSource = (musicInfo: LX.Music.MusicInfo | LX.Music.MusicInfoOnline, source: string) => {
   return badSources.get(musicKey(musicInfo))?.has(source) ?? false
+}
+
+export const setServedSource = (musicInfo: LX.Music.MusicInfo | LX.Music.MusicInfoOnline, source: string) => {
+  servedSources.set(musicKey(musicInfo), source)
+}
+
+export const getServedSource = (musicInfo: LX.Music.MusicInfo | LX.Music.MusicInfoOnline) => {
+  return servedSources.get(musicKey(musicInfo))
 }

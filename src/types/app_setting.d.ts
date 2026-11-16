@@ -168,6 +168,11 @@ declare global {
       'player.raceAllSources': boolean
 
       /**
+       * 音频最短时长(秒), 小于它的链接按换源失败处理, 0 表示不检查
+       */
+      'player.minMusicDuration': number
+
+      /**
        * 是否启用音频卸载功能（这可以节省耗电量，没有播放异常问题不建议关闭）
        */
       'player.isEnableAudioOffload': boolean

@@ -21,7 +21,7 @@ import {
 } from '@/core/player/tempPlayList'
 import { getMusicUrl, getMusicUrlRacing, getPicPath, getLyricInfo } from '@/core/music'
 import { getMusicUrlFromOtherSources } from '@/core/music/utils'
-import { takeReserve } from '@/core/music/urlReserve'
+import { takeReserve, setServedSource } from '@/core/music/urlReserve'
 import { saveMusicUrl } from '@/utils/data'
 import { requestMsg } from '@/utils/message'
 import { getRandom } from '@/utils/common'
@@ -168,6 +168,7 @@ export const setMusicUrlFromOtherSource = (musicInfo: LX.Music.MusicInfo | LX.Do
   const reserved = takeReserve(info)
   if (reserved) {
     setStatusText('当前源播不了，换到备用源…')
+    setServedSource(info, reserved.source)
     setResource(musicInfo, reserved.url, playerState.progress.nowPlayTime)
     void saveMusicUrl(info as LX.Music.MusicInfo, reserved.quality, reserved.url)
     onResult?.({ source: reserved.source, quality: reserved.quality })
@@ -180,6 +181,7 @@ export const setMusicUrlFromOtherSource = (musicInfo: LX.Music.MusicInfo | LX.Do
   setStatusText('音频加载失败，正在换源…')
   void getMusicUrlFromOtherSources({ musicInfo: info as LX.Music.MusicInfoOnline }).then(({ url, quality, source }) => {
     if (global.lx.isPlayedStop || diffCurrentMusicInfo(musicInfo)) return
+    setServedSource(info, source)
     setResource(musicInfo, url, playerState.progress.nowPlayTime)
     void saveMusicUrl(info as LX.Music.MusicInfo, quality, url)
     onResult?.({ source, quality })

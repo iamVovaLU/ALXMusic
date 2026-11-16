@@ -19,6 +19,7 @@ import {
   pushEvent,
 } from './sourceHealth'
 import { isBadSource, saveReserve } from './urlReserve'
+import { getMinMusicDuration, parseIntervalSeconds } from './duration'
 
 
 const getOtherSourcePromises = new Map()
@@ -255,6 +256,8 @@ export const raceOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSour
   const apiSource = currentApiSource()
   const candidates: LX.Music.MusicInfoOnline[] = []
   const seen = new Set<string>()
+  const minDur = getMinMusicDuration()
+  const ownerDur = owner ? parseIntervalSeconds(owner.interval) : 0
   for (const mi of musicInfos) {
     if (!assertApiSupport(mi.source)) continue
     if (seen.has(mi.source)) continue
@@ -262,6 +265,9 @@ export const raceOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSour
     if (isBadSource(owner ?? mi, mi.source)) continue
     const q = quality ?? getPlayQuality(settingState.setting['player.playQuality'], mi)
     if (!mi.meta._qualitys[q]) continue
+    // 元信息就写着不到阈值(且原曲本该更长) -> 基本是试听片段, 直接跳过
+    const candDur = parseIntervalSeconds(mi.interval)
+    if (minDur > 0 && ownerDur >= minDur && candDur > 0 && candDur < minDur) continue
     seen.add(mi.source)
     candidates.push(mi)
   }
@@ -328,6 +334,8 @@ export const getMusicUrlFromAllSources = async({ musicInfo, quality, onToggleSou
 }): Promise<{ url: string, quality: LX.Quality, source: string, musicInfo: LX.Music.MusicInfoOnline }> => {
   await initSourceHealth()
   const apiSource = currentApiSource()
+  const minDur = getMinMusicDuration()
+  const ownerDur = parseIntervalSeconds(musicInfo.interval)
   let settled = false
   let pending = 0
   let searchDone = false
@@ -348,6 +356,8 @@ export const getMusicUrlFromAllSources = async({ musicInfo, quality, onToggleSou
       if (isBadSource(musicInfo, mi.source)) return
       const q = quality ?? getPlayQuality(settingState.setting['player.playQuality'], mi)
       if (!mi.meta._qualitys[q]) return
+      const candDur = parseIntervalSeconds(mi.interval)
+      if (minDur > 0 && ownerDur >= minDur && candDur > 0 && candDur < minDur) return
       tried.add(mi.source)
       pending++
       const t0 = Date.now()

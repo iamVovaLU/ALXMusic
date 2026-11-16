@@ -28,6 +28,8 @@ const defaultSetting: LX.AppSetting = {
   'player.isAutoCleanPlayedList': false,
   'player.isHandleAudioFocus': true,
   'player.raceAllSources': true,
+  // 小于这个秒数的音频不算歌(试听片段/会员提示音), 换源时按失败处理
+  'player.minMusicDuration': 30,
   'player.isEnableAudioOffload': false,
   'player.isShowLyricTranslation': false,
   'player.isShowLyricRoma': false,

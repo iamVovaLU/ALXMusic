@@ -25,6 +25,8 @@ const fmtTime = (ts: number) => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
 }
 
+const MIN_DURATION_OPTIONS = [0, 15, 30, 45, 60, 90]
+
 const statusOf = (s: SourceStat) => {
   if (!s.attempts) return '未使用'
   return `成功率 ${Math.round(s.success / s.attempts * 100)}%`
@@ -33,6 +35,7 @@ const statusOf = (s: SourceStat) => {
 export default memo(() => {
   const theme = useTheme()
   const raceAll = useSettingValue('player.raceAllSources')
+  const minDuration = useSettingValue('player.minMusicDuration')
   const [stats, setStats] = useState<SourceStat[]>([])
   const [events, setEvents] = useState<HealthEvent[]>([])
 
@@ -89,6 +92,25 @@ export default memo(() => {
         <Text size={10} color={theme['c-350']}>
           开：每次播放都把当前源和所有匹配到的源一起放出去抢，先返回且验证通过的直接用（会多出几次搜索请求）。
           关：只有当前源失败时才竞速。
+        </Text>
+      </View>
+      <View style={styles.row}>
+        <Text size={12} color={theme['c-400']}>最短时长（秒）</Text>
+      </View>
+      <View style={styles.btnRow}>
+        {MIN_DURATION_OPTIONS.map(sec => (
+          <Button key={sec} onPress={() => {
+            updateSetting({ 'player.minMusicDuration': sec })
+            toast(sec ? `已设为 ${sec} 秒，短于它的音频按无效处理` : '已关闭时长检查')
+          }}>
+            <Text size={12} color={minDuration == sec ? theme['c-primary'] : theme['c-350']}>{sec ? `${sec}s` : '关闭'}</Text>
+          </Button>
+        ))}
+      </View>
+      <View style={styles.row}>
+        <Text size={11} color={theme['c-350']}>
+          播放器实际播出声后拿真实时长，小于这个值就当换源失败继续换下一个源（默认 30 秒）。
+          专治那些失败后返回 16~30 秒试听片段或会员提示音的源；原曲本身就短于该值时不做检查。
         </Text>
       </View>
       <View style={styles.btnRow}>

@@ -18,6 +18,7 @@ import {
   getLyricInfo as getLocalLyricInfo,
 } from './local'
 import { getMusicUrlFromAllSources, getPlayQuality } from './utils'
+import { setServedSource } from './urlReserve'
 import { saveMusicUrl, getMusicUrl as getStoredMusicUrl } from '@/utils/data'
 import { isCached } from '@/plugins/player/utils'
 import settingState from '@/store/setting/state'
@@ -122,6 +123,8 @@ export const getMusicUrlRacing = async({
   if (info.source == 'local') {
     return getLocalMusicUrl({ musicInfo: info as LX.Music.MusicInfoLocal, isRefresh: false, onToggleSource })
   }
+  // 默认按原曲的源记, 竞速真的换源了再覆盖
+  setServedSource(info, info.source)
   const downloadedPath = getDownloadedFilePath(info as LX.Music.MusicInfo)
   if (downloadedPath) {
     try {
@@ -141,6 +144,7 @@ export const getMusicUrlRacing = async({
       quality,
       onToggleSource,
     })
+    setServedSource(info as LX.Music.MusicInfoOnline, result.musicInfo.source)
     void saveMusicUrl(result.musicInfo, result.quality, result.url)
     // 胜出的可能是另一个源的歌(不同 id), 原歌的 id 也存一份, 下次才能用它命中缓存
     if (String(result.musicInfo.id) != String((info as LX.Music.MusicInfoOnline).id)) {
