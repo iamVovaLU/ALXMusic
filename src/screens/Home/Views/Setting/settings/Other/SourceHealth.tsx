@@ -26,13 +26,8 @@ const fmtTime = (ts: number) => {
 }
 
 const statusOf = (s: SourceStat) => {
-  const left = s.cooldownUntil - Date.now()
-  if (left > 0) return `冷却 ${Math.ceil(left / 1000)}s`
   if (!s.attempts) return '未使用'
-  const rate = s.success / s.attempts
-  if (rate >= 0.9) return '健康'
-  if (rate >= 0.6) return '一般'
-  return '差'
+  return `成功率 ${Math.round(s.success / s.attempts * 100)}%`
 }
 
 export default memo(() => {
@@ -55,7 +50,7 @@ export default memo(() => {
   const handleClear = () => {
     void confirmDialog({
       title: '清空音源统计',
-      message: '会清空所有源的成功率/耗时记录和冷却状态，不影响已导入的音源。',
+      message: '会清空所有源的成功率/耗时记录，不影响已导入的音源。',
       confirmButtonText: '清空',
     }).then(async ok => {
       if (!ok) return
@@ -68,7 +63,7 @@ export default memo(() => {
   const apiSource = settingState.setting['common.apiSource'] || '内置源'
 
   return (
-    <SubTitle title="音源健康 / 竞速换源">
+    <SubTitle title="换源统计 / 全源竞速">
       <View style={styles.row}>
         <Text size={12} color={theme['c-400']}>
           当前音源: {apiSource}
@@ -76,8 +71,8 @@ export default memo(() => {
       </View>
       <View style={styles.row}>
         <Text size={11} color={theme['c-350']}>
-          取链接不再串行挨个试：多个源同时抢，第一个返回且验证可播（HTTP 200/206 + 非网页）的胜出。
-          连续失败 3 次的源进入冷却，按 1→2→4… 分钟递增；开关关闭时只在当前源失败后才竞速。
+          取链接不再串行挨个试：所有能拿到目标音质的源**同时全上**，第一个返回且验证可播（HTTP 200/206 + 非网页）的胜出。
+          没有健康度过滤/排序/冷却，也不限制并发数 —— 某个源这首不行不代表别的歌也不行，全交给这一轮的实际请求判定。
         </Text>
       </View>
 

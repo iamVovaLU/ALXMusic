@@ -1,13 +1,10 @@
-// 音源健康统计: 记录每个源(平台 + 当前自定义源)的成败/耗时/冷却状态,
-// 给「竞速换源」提供排序依据, 也给设置页提供可视化数据.
+// 音源统计: 只记录每个源(平台 + 当前自定义源)的成败/耗时, 给设置页看,
+// 不再参与换源决策 -- 竞速时所有源一律同时上, 不做健康度过滤/排序/冷却.
 import { getData, saveData } from '@/plugins/storage'
 import { log } from '@/utils/log'
 
 const STORAGE_KEY = '@alx_source_health_v1'
 const MAX_EVENTS = 40
-const FAIL_THRESHOLD = 3 // 连续失败次数达到后进入冷却
-const BASE_COOLDOWN = 60 * 1000
-const MAX_COOLDOWN = 30 * 60 * 1000
 
 export interface SourceStat {
   key: string
@@ -20,7 +17,6 @@ export interface SourceStat {
   lastFailAt: number
   lastError: string
   consecutiveFails: number
-  cooldownUntil: number
 }
 
 export interface HealthEvent {
@@ -53,7 +49,7 @@ export const initSourceHealth = async() => {
       if (Array.isArray(saved)) {
         for (const s of saved) {
           if (!s || !s.key) continue
-          stats.set(s.key, { ...s, cooldownUntil: 0 })
+          stats.set(s.key, s)
         }
       }
     } catch (err) {
@@ -71,7 +67,7 @@ const ensure = (apiSource: string, source: string): SourceStat => {
       key, source, apiSource,
       attempts: 0, success: 0, avgMs: 0,
       lastOkAt: 0, lastFailAt: 0, lastError: '',
-      consecutiveFails: 0, cooldownUntil: 0,
+      consecutiveFails: 0,
     }
     stats.set(key, st)
   }
@@ -92,7 +88,6 @@ export const recordSuccess = (apiSource: string, source: string, ms: number) => 
   st.avgMs = st.avgMs ? Math.round(st.avgMs * 0.7 + ms * 0.3) : ms
   st.lastOkAt = Date.now()
   st.consecutiveFails = 0
-  st.cooldownUntil = 0
   scheduleSave()
 }
 
@@ -102,30 +97,7 @@ export const recordFail = (apiSource: string, source: string, ms: number, err: u
   st.lastFailAt = Date.now()
   st.lastError = String((err as any)?.message ?? err ?? '').slice(0, 120)
   st.consecutiveFails++
-  if (st.consecutiveFails >= FAIL_THRESHOLD) {
-    const level = st.consecutiveFails - FAIL_THRESHOLD
-    st.cooldownUntil = Date.now() + Math.min(BASE_COOLDOWN * Math.pow(2, level), MAX_COOLDOWN)
-  }
   scheduleSave()
-}
-
-export const isCoolingDown = (apiSource: string, source: string) => {
-  const st = stats.get(buildKey(apiSource, source))
-  return !!st && st.cooldownUntil > Date.now()
-}
-
-export const getCooldownLeft = (apiSource: string, source: string) => {
-  const st = stats.get(buildKey(apiSource, source))
-  return st ? Math.max(0, st.cooldownUntil - Date.now()) : 0
-}
-
-// 健康分: 成功率为主, 延迟为辅; 没数据的源给 0.5 的探索分, 免得永远不试
-export const healthScore = (apiSource: string, source: string) => {
-  const st = stats.get(buildKey(apiSource, source))
-  if (!st || !st.attempts) return 0.5
-  const rate = st.success / st.attempts
-  const speed = st.avgMs ? Math.min(1, 1500 / Math.max(st.avgMs, 1)) : 0.5
-  return rate * 0.75 + speed * 0.25
 }
 
 export const getStats = () => [...stats.values()].sort((a, b) => b.attempts - a.attempts)

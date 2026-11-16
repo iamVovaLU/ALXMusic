@@ -13,10 +13,8 @@ import BackgroundTimer from 'react-native-background-timer'
 import { apis } from '@/utils/musicSdk/api-source'
 import {
   initSourceHealth,
-  isCoolingDown,
   recordSuccess,
   recordFail,
-  healthScore,
   probeAudioUrl,
   pushEvent,
 } from './sourceHealth'
@@ -241,30 +239,31 @@ export const getPlayQuality = (highQuality: LX.Quality, musicInfo: LX.Music.Musi
 const currentApiSource = () => settingState.setting['common.apiSource'] || ''
 
 /**
- * 并行竞速换源: 同时向多个"健康"的源要链接, 第一个**经过验证真的能播**的胜出.
- * 和原来的串行重试相比: 慢源不再拖住后面, 死链不会直接被当成成功.
+ * 并行竞速换源: 所有能拿到目标音质的源**同时全上**, 第一个经过验证真的能播的胜出.
+ * 不做健康度过滤/排序/冷却, 也不限制并发数 -- 某些源对某首歌不行不代表对别的歌不行,
+ * 所以能不能出结果交给这一轮的实际请求去判定.
  */
-export const raceOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSource, maxParallel = 4 }: {
+export const raceOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSource }: {
   musicInfos: LX.Music.MusicInfoOnline[]
   quality?: LX.Quality
   onToggleSource: (musicInfo?: LX.Music.MusicInfoOnline) => void
-  maxParallel?: number
 }): Promise<{ url: string, musicInfo: LX.Music.MusicInfoOnline, quality: LX.Quality, isFromCache: boolean }> => {
   await initSourceHealth()
   const apiSource = currentApiSource()
   const candidates: LX.Music.MusicInfoOnline[] = []
+  const seen = new Set<string>()
   for (const mi of musicInfos) {
     if (!assertApiSupport(mi.source)) continue
-    if (isCoolingDown(apiSource, mi.source)) continue
+    if (seen.has(mi.source)) continue
     const q = quality ?? getPlayQuality(settingState.setting['player.playQuality'], mi)
     if (!mi.meta._qualitys[q]) continue
+    seen.add(mi.source)
     candidates.push(mi)
   }
   if (!candidates.length) throw new Error(global.i18n.t('toggle_source_failed'))
 
-  candidates.sort((a, b) => healthScore(apiSource, b.source) - healthScore(apiSource, a.source))
-  const batch = candidates.slice(0, maxParallel)
-  pushEvent(`开始竞速: ${batch.map(m => m.source).join(' / ')}`)
+  const batch = candidates
+  pushEvent(`开始竞速 ${batch.length} 源: ${batch.map(m => m.source).join(' / ')}`)
 
   return new Promise((resolve, reject) => {
     let pending = batch.length
@@ -338,10 +337,6 @@ export const getMusicUrlFromAllSources = async({ musicInfo, quality, onToggleSou
     const attempt = (mi: LX.Music.MusicInfoOnline) => {
       if (settled || tried.has(mi.source)) return
       if (!assertApiSupport(mi.source)) return
-      if (isCoolingDown(apiSource, mi.source)) {
-        pushEvent(`${mi.source} 冷却中, 跳过`)
-        return
-      }
       const q = quality ?? getPlayQuality(settingState.setting['player.playQuality'], mi)
       if (!mi.meta._qualitys[q]) return
       tried.add(mi.source)

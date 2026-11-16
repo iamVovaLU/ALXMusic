@@ -16,7 +16,7 @@ import { version } from '../../../../../package.json'
 const TABS = [
   { id: 'listened', name: '听榜' },
   { id: 'log', name: '实时日志' },
-  { id: 'health', name: '音源健康' },
+  { id: 'health', name: '换源统计' },
   { id: 'status', name: '运行状态' },
 ] as const
 
@@ -264,7 +264,7 @@ const StatusTab = memo(() => {
       ))}
       <View style={styles.statusRow}>
         <Text size={11} color={theme['c-400']}>
-          播放失败时同时向最多 4 个健康源取链接并验证，详见「音源健康」标签。
+          失败时所有源同时竞速取链接并验证，详见「换源统计」标签。
         </Text>
       </View>
     </ScrollView>
