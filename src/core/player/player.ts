@@ -21,6 +21,7 @@ import {
 } from '@/core/player/tempPlayList'
 import { getMusicUrl, getMusicUrlRacing, getPicPath, getLyricInfo } from '@/core/music'
 import { getMusicUrlFromOtherSources } from '@/core/music/utils'
+import { takeReserve } from '@/core/music/urlReserve'
 import { saveMusicUrl } from '@/utils/data'
 import { requestMsg } from '@/utils/message'
 import { getRandom } from '@/utils/common'
@@ -163,6 +164,19 @@ export const setMusicUrlFromOtherSource = (musicInfo: LX.Music.MusicInfo | LX.Do
   if (info.source == 'local') return
   if (cancelDelayRetry) cancelDelayRetry()
   global.lx.gettingUrlId = createGettingUrlId(musicInfo)
+  // 竞速时探活通过的备胎先用: 不用重新搜索/竞速, 也几乎不会再失败
+  const reserved = takeReserve(info)
+  if (reserved) {
+    setStatusText('当前源播不了，换到备用源…')
+    setResource(musicInfo, reserved.url, playerState.progress.nowPlayTime)
+    void saveMusicUrl(info as LX.Music.MusicInfo, reserved.quality, reserved.url)
+    onResult?.({ source: reserved.source, quality: reserved.quality })
+    if (musicInfo === playerState.playMusicInfo.musicInfo) {
+      global.lx.gettingUrlId = ''
+      clearLoadTimeout()
+    }
+    return
+  }
   setStatusText('音频加载失败，正在换源…')
   void getMusicUrlFromOtherSources({ musicInfo: info as LX.Music.MusicInfoOnline }).then(({ url, quality, source }) => {
     if (global.lx.isPlayedStop || diffCurrentMusicInfo(musicInfo)) return

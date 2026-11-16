@@ -18,6 +18,7 @@ import {
   probeAudioUrl,
   pushEvent,
 } from './sourceHealth'
+import { isBadSource, saveReserve } from './urlReserve'
 
 
 const getOtherSourcePromises = new Map()
@@ -255,6 +256,8 @@ export const raceOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSour
   for (const mi of musicInfos) {
     if (!assertApiSupport(mi.source)) continue
     if (seen.has(mi.source)) continue
+    // 这首歌上已经播放失败过的源不再浪费一次请求
+    if (isBadSource(mi, mi.source)) continue
     const q = quality ?? getPlayQuality(settingState.setting['player.playQuality'], mi)
     if (!mi.meta._qualitys[q]) continue
     seen.add(mi.source)
@@ -292,10 +295,13 @@ export const raceOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSour
       }
       // eslint-disable-next-line @typescript-eslint/promise-function-async
       reqPromise.then(async({ url, type }) => {
-        if (settled) return
         const ok = await probeAudioUrl(url)
         if (!ok) throw new Error('url probe failed')
-        if (settled) return
+        // 已经有人胜出: 这条也探活通过, 存进备胎池, 等播放器真的出事再拿出来
+        if (settled) {
+          saveReserve(mi, type, url)
+          return
+        }
         const ms = Date.now() - t0
         recordSuccess(apiSource, mi.source, ms)
         pushEvent(`${mi.source} 命中 ${type} ${ms}ms`)
@@ -337,6 +343,7 @@ export const getMusicUrlFromAllSources = async({ musicInfo, quality, onToggleSou
     const attempt = (mi: LX.Music.MusicInfoOnline) => {
       if (settled || tried.has(mi.source)) return
       if (!assertApiSupport(mi.source)) return
+      if (isBadSource(mi, mi.source)) return
       const q = quality ?? getPlayQuality(settingState.setting['player.playQuality'], mi)
       if (!mi.meta._qualitys[q]) return
       tried.add(mi.source)
@@ -350,10 +357,13 @@ export const getMusicUrlFromAllSources = async({ musicInfo, quality, onToggleSou
       }
       // eslint-disable-next-line @typescript-eslint/promise-function-async
       reqPromise.then(async({ url, type }) => {
-        if (settled) return
         const ok = await probeAudioUrl(url)
         if (!ok) throw new Error('url probe failed')
-        if (settled) return
+        // 已经有人胜出: 这条也探活通过, 存进备胎池, 等播放器真的出事再拿出来
+        if (settled) {
+          saveReserve(mi, type, url)
+          return
+        }
         const ms = Date.now() - t0
         recordSuccess(apiSource, mi.source, ms)
         pushEvent(`${mi.source} 命中 ${type} ${ms}ms (全源竞速)`)

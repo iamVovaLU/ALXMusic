@@ -6,8 +6,12 @@ import BackgroundTimer from 'react-native-background-timer'
 import playerState from '@/store/player/state'
 import { setNowPlayTime } from '@/core/player/progress'
 import { initSourceHealth, recordFail, pushEvent } from '@/core/music/sourceHealth'
+import { markBadSource } from '@/core/music/urlReserve'
 import settingState from '@/store/setting/state'
 
+
+// 单曲最多换几次源再认输: 5 个平台 + 备胎池, 8 次足够试完还留余量
+const MAX_SWITCH = 8
 
 export default () => {
   let retryNum = 0
@@ -92,21 +96,32 @@ export default () => {
     if (!playerState.musicInfo.id) return
     clearLoadingTimeout()
     if (global.lx.isPlayedStop) return
-    if (playerState.playMusicInfo.musicInfo && retryNum < 2) { // 若音频URL无效则尝试刷新2次URL
+    if (playerState.playMusicInfo.musicInfo && retryNum < MAX_SWITCH) {
       let musicInfo = playerState.playMusicInfo.musicInfo
-      void getPosition().then((position) => {
-        if (position) setNowPlayTime(position)
+      let position = 0
+      void getPosition().then((p) => {
+        position = p
+        if (p) setNowPlayTime(p)
       }).finally(() => {
         // console.log(this.retryNum)
         if (playerState.playMusicInfo.musicInfo !== musicInfo) return
-        // ALX: 播放器报错说明"拿到的链接其实播不了", 先把这个源记一次失败,
-        // 然后直接换源(并行竞速), 而不是反复刷新同一个死链.
-        const source = 'progress' in musicInfo ? musicInfo.metadata.musicInfo.source : musicInfo.source
-        if (retryNum === 0 && source != 'local') {
+        // ALX: 播放器报错说明"拿到的链接其实播不了". 先把这个源记为坏源,
+        // 然后一直换到下一个源(优先用竞速留下的备胎), 直到真的播出声为止,
+        // 不要因为探测通过就报「音频加载出错」.
+        const info = 'progress' in musicInfo ? musicInfo.metadata.musicInfo : musicInfo
+        const source = info.source
+        if (source != 'local') {
           retryNum++
+          // 播了几秒才出错更像网络抖动, 刷新同一个链接, 不判这个源死刑
+          if (position > 5000) {
+            setMusicUrl(playerState.playMusicInfo.musicInfo, true)
+            setStatusText(global.i18n.t('player__refresh_url'))
+            return
+          }
+          markBadSource(info, source)
           void initSourceHealth().then(() => {
             recordFail(settingState.setting['common.apiSource'] || '', source, 0, 'audio load error (player)')
-            pushEvent(`播放报错 → 标记 ${source} 失败并换源`)
+            pushEvent(`播放报错 → ${source} 记为坏源, 换下一个 (${retryNum}/${MAX_SWITCH})`)
           })
           setMusicUrlFromOtherSource(musicInfo)
           return
